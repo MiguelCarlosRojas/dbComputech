@@ -1187,7 +1187,6 @@
 
             playChime(data.category);
             appendNotificationToFeed(data);
-            showToastNotification(data);
             prependLogRow(data);
         }
 
@@ -1366,6 +1365,9 @@
         }
 
         function showToastNotification(data) {
+            // Notificación del sistema restringida exclusivamente a autorización de cámara y grabación de video
+            if (!data || data.category !== 'permission') return;
+
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = 'p-3.5 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md flex items-center gap-3 transition-all transform translate-y-2 opacity-0 pointer-events-auto';
@@ -1627,6 +1629,13 @@
                 isCameraActive = true;
                 updateCameraStatusUI(true);
                 startDetectionEngine();
+
+                showToastNotification({
+                    category: 'permission',
+                    display_name: 'Cámara Autorizada y Transmitiendo',
+                    color: '#10B981',
+                    confidence: 100
+                });
 
                 // Re-verificar cámaras con permisos concedidos para obtener nombres reales de dispositivos
                 await checkAvailableCameras();
