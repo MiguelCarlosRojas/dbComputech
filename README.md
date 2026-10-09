@@ -48,7 +48,7 @@ graph LR
     end
 
     subgraph Interfaz ["Paneles Interactivos"]
-        REVERB --> FEED["Feed en Vivo (6 registros + Scroll Infinito)"]
+        REVERB --> FEED["Notificaciones en Vivo (7 registros + Scroll Infinito)"]
         DB --> DRAWER_R["Panel Auditoría (Paginación 15/pág)"]
         CONTROLLER --> DRAWER_L["Guía Cromática Lateral"]
     end
@@ -88,9 +88,9 @@ graph LR
 * Si se conectan 2 o más cámaras, el botón aparece con un menú interactivo desplegable que lista cada cámara por su nombre real y conmuta la transmisión en caliente.
 * Escucha reactiva del evento `devicechange` para detectar conexión o desconexión física de cámaras USB.
 
-### 6. Notificaciones WebSocket con Scroll Infinito y Esqueleto
+### 6. Notificaciones en Vivo con Scroll Infinito y Esqueleto
 * Transmisión bidireccional instantánea mediante **Laravel Reverb**.
-* Contenedor ajustado a **exactamente 6 registros visibles**.
+* Contenedor ajustado a **exactamente 7 registros visibles**.
 * Scroll infinito por lotes que activa una animación de esqueleto (*Skeleton Loader*) sin sobrecargar el servidor ni descargar registros de golpe.
 * El esqueleto permanece estrictamente oculto cuando el feed se encuentra en estado vacío.
 
