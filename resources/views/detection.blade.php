@@ -328,7 +328,7 @@
                             </div>
                         </div>
 
-                        <!-- Live Top HUD Overlay -->
+                        <!-- Live Top HUD Overlay (Exclusively EN VIVO and REC indicator) -->
                         <div id="videoHud" class="hidden absolute top-3 sm:top-4 left-3 sm:left-4 z-20 flex flex-wrap gap-1.5 sm:gap-2 pointer-events-none max-w-[90%]">
                             <div class="px-2.5 sm:px-3 py-1 rounded-lg bg-slate-950/85 backdrop-blur border border-emerald-500/40 text-[11px] sm:text-xs font-mono-code text-emerald-400 flex items-center gap-1.5 sm:gap-2 shadow">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -338,15 +338,6 @@
                             <div id="hudRecordingBadge" class="hidden px-2.5 sm:px-3 py-1 rounded-lg bg-rose-950/90 backdrop-blur border border-rose-500/60 text-[11px] sm:text-xs font-bold text-rose-300 flex items-center gap-1.5 sm:gap-2 shadow animate-pulse">
                                 <span class="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-rose-500"></span>
                                 <span id="hudRecordTimer">REC 00:00</span>
-                            </div>
-                            <div id="hudPersonsBadge" class="px-2.5 sm:px-3 py-1 rounded-lg bg-blue-950/85 backdrop-blur border border-blue-500/40 text-[11px] sm:text-xs font-bold text-blue-300 shadow">
-                                Personas: 0
-                            </div>
-                            <div id="hudHairBadge" class="px-2.5 sm:px-3 py-1 rounded-lg bg-amber-950/85 backdrop-blur border border-amber-500/40 text-[11px] sm:text-xs font-bold text-amber-300 shadow">
-                                Cabello: -
-                            </div>
-                            <div id="hudBehaviorBadge" class="px-2.5 sm:px-3 py-1 rounded-lg bg-purple-950/85 backdrop-blur border border-purple-500/40 text-[11px] sm:text-xs font-bold text-purple-300 shadow">
-                                Gesto: Analizando...
                             </div>
                         </div>
                     </div>
@@ -936,10 +927,11 @@
             activeTracks = activeTracks.filter(t => (t.missedCycles || 0) <= TRACK_MAX_MISSED_CYCLES);
         }
 
-        // High-Precision Fast Inference Canvas (640x360 maintains far-away and subtle object features)
+        // High-Precision Panoramic AI Inference Canvas
+        // Resolves objects in close-up, distance, and corner peripheries with HD fidelity
         const inferCanvas = document.createElement('canvas');
-        inferCanvas.width = 640;
-        inferCanvas.height = 360;
+        inferCanvas.width = 1280;
+        inferCanvas.height = 720;
         const inferCtx = inferCanvas.getContext('2d', { alpha: false, willReadFrequently: false });
         let inferenceTimer = null;
 
@@ -947,6 +939,7 @@
         let isInferring = false;
         let cachedPredictions = [];
         let cachedPersonsData = [];
+        let cachedObjectContexts = {};
         let cachedBehavior = { key: 'absent', name: 'Persona Ausente', color: '#64748B', confidence: 0.95 };
         let lastInferenceTime = 0;
         let lastHairSampleTime = 0;
@@ -958,7 +951,7 @@
         let fps = 0;
         let wsEventsCount = {{ $stats['total'] }};
         let sessionEventsCount = 0;
-        let minConfidence = 0.16;
+        let minConfidence = 0.15;
 
         // Tracking state
         let previousPersons = [];
@@ -1763,12 +1756,17 @@
                     await tf.ready();
                 }
 
-                text.innerText = 'IA: Descargando Red...';
-                cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+                text.innerText = 'IA: Cargando Red HD...';
+                try {
+                    cocoModel = await cocoSsd.load({ base: 'mobilenet_v2' });
+                } catch (loadErr) {
+                    console.warn('Fallback a lite_mobilenet_v2:', loadErr);
+                    cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+                }
                 
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400';
-                text.innerText = 'IA: Activo Flash (GPU)';
+                text.innerText = 'IA: Alta Precisión (HD)';
             } catch (e) {
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-rose-400';
@@ -1808,7 +1806,7 @@
                 track.bbox[3] += (track.targetBbox[3] - track.bbox[3]) * TRACK_LERP_FACTOR;
             }
 
-            renderComprehensiveOverlay(cachedPredictions, cachedPersonsData, cachedBehavior);
+            renderComprehensiveOverlay(cachedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts);
 
             // Composición para grabación de video (Cámara Web Real + Bounding Boxes & HUD de IA)
             if (isRecording) {
@@ -1860,17 +1858,27 @@
             }
         }
 
-        // 3. FAST HIGH-PRECISION INFERENCE: Detects far-away and subtle objects instantly
+        // 3. FAST HIGH-PRECISION INFERENCE: Detects far-away and subtle objects instantly across full environment
         async function runFastInference() {
             isInferring = true;
             const startTime = performance.now();
 
             try {
-                // High-fidelity downscaled frame preserving distant object features
+                // Adaptive HD canvas maintaining camera aspect ratio (up to 1280x720) for crystal clear scene detection
+                const vW = videoElement.videoWidth || 1280;
+                const vH = videoElement.videoHeight || 720;
+                const targetW = Math.min(1280, vW);
+                const targetH = Math.round(targetW * (vH / vW));
+                if (inferCanvas.width !== targetW || inferCanvas.height !== targetH) {
+                    inferCanvas.width = targetW;
+                    inferCanvas.height = targetH;
+                }
+
+                // High-fidelity frame capture preserving distant and peripheral details
                 inferCtx.drawImage(videoElement, 0, 0, inferCanvas.width, inferCanvas.height);
 
-                // Run MobileNet inference with high box capacity and low confidence threshold for distant items
-                const rawPredictions = await cocoModel.detect(inferCanvas, 40, minConfidence);
+                // Run neural inference with high box capacity and low confidence threshold for full room scanning
+                const rawPredictions = await cocoModel.detect(inferCanvas, 50, minConfidence);
 
                 // Re-project coordinates onto full screen canvas
                 const scaleX = canvasElement.width / inferCanvas.width;
@@ -1900,18 +1908,19 @@
 
                 cachedPredictions = trackedPredictions;
                 cachedPersonsData = analyzePersonsAndHair(activeTracks);
-                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData);
+                cachedObjectContexts = enrichEnvironmentalContext(trackedPredictions, cachedPersonsData);
+                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData, cachedObjectContexts);
 
                 const infDuration = Math.round(performance.now() - startTime);
                 document.getElementById('inferenceCounter').innerText = `${infDuration} ms`;
 
-                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior);
+                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts);
 
                 // Instant UI feedback (every 80ms)
                 const now = performance.now();
                 if (now - lastDomUpdateTime > 80) {
                     lastDomUpdateTime = now;
-                    updateKPIsAndRadar(trackedPredictions, cachedPersonsData, cachedBehavior);
+                    updateKPIsAndRadar(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts);
                 }
 
             } catch (err) {
@@ -2040,35 +2049,114 @@
         }
 
         // ==========================================
-        // GESTURE & BEHAVIOR ANALYSIS HEURISTICS
+        // ENVIRONMENTAL & SPATIAL CONTEXT ENGINE
+        // Analyzes topology of EVERY object in the scene relative to people and furniture
         // ==========================================
-        function analyzeGesturesAndBehavior(predictions, personsData) {
+        function enrichEnvironmentalContext(predictions, personsData) {
+            const contextMap = {};
+            const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
+            const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch' || p.class === 'bed');
+
+            predictions.forEach(pred => {
+                if (pred.class === 'person') return;
+
+                const [ox, oy, ow, oh] = pred.bbox;
+                const ocx = ox + ow / 2;
+                const ocy = oy + oh / 2;
+                let ctxTag = 'En entorno';
+
+                // 1. Interacción directa con personas detectadas
+                for (const person of personsData) {
+                    const [px, py, pw, ph] = person.bbox;
+                    const inPersonPerimeter = (ocx >= px - pw * 0.35 && ocx <= px + pw * 1.35 && ocy >= py && ocy <= py + ph * 1.15);
+
+                    if (inPersonPerimeter) {
+                        if (pred.class === 'cell phone') {
+                            ctxTag = (ocy <= py + ph * 0.42) ? 'En mano • En llamada' : 'En mano • Manipulando';
+                        } else if (pred.class === 'bottle' || pred.class === 'cup' || pred.class === 'wine glass') {
+                            ctxTag = (ocy <= py + ph * 0.52) ? 'En mano • Bebiendo' : 'En mano';
+                        } else if (pred.class === 'laptop' || pred.class === 'keyboard' || pred.class === 'mouse') {
+                            ctxTag = 'En uso activo';
+                        } else if (pred.class === 'book') {
+                            ctxTag = 'En mano • Lectura';
+                        } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase') {
+                            ctxTag = 'Portado por persona';
+                        } else {
+                            ctxTag = 'En interacción';
+                        }
+                        break;
+                    }
+                }
+
+                // 2. Apoyo sobre mobiliario de escritorio / mesa
+                if (ctxTag === 'En entorno') {
+                    for (const table of tables) {
+                        const [tx, ty, tw, th] = table.bbox;
+                        if (ocx >= tx - tw * 0.1 && ocx <= tx + tw * 1.1 && ocy >= ty - oh * 0.8 && ocy <= ty + th) {
+                            ctxTag = 'Sobre mesa / escritorio';
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Ubicación sobre asientos o sofás
+                if (ctxTag === 'En entorno') {
+                    for (const chair of chairs) {
+                        const [cx, cy, cw, ch] = chair.bbox;
+                        if (ocx >= cx && ocx <= cx + cw && ocy >= cy && ocy <= cy + ch) {
+                            ctxTag = 'Sobre asiento';
+                            break;
+                        }
+                    }
+                }
+
+                // 4. Ubicación cuadrante general en el entorno
+                if (ctxTag === 'En entorno') {
+                    const zone = getPositionDescription(pred.bbox);
+                    ctxTag = `Entorno • ${zone}`;
+                }
+
+                contextMap[pred.id || `${pred.class}_${Math.round(ox)}`] = ctxTag;
+            });
+
+            return contextMap;
+        }
+
+        // ==========================================
+        // GESTURE & BEHAVIOR ANALYSIS HEURISTICS
+        // Detecta gestos precisos, qué hace la persona y el estado de la escena completa
+        // ==========================================
+        function analyzeGesturesAndBehavior(predictions, personsData, objectContexts) {
             const personCount = personsData.length;
 
             if (personCount === 0) {
                 return {
                     key: 'absent',
-                    name: 'Persona Ausente / Sin Detección',
-                    color: BEHAVIOR_COLOR_MAP['absent'].color,
+                    name: BEHAVIOR_COLOR_MAP['absent'] ? BEHAVIOR_COLOR_MAP['absent'].name : 'Persona Ausente / Sin Detección',
+                    color: BEHAVIOR_COLOR_MAP['absent'] ? BEHAVIOR_COLOR_MAP['absent'].color : '#64748B',
                     confidence: 0.95
                 };
             }
 
             const phones = predictions.filter(p => p.class === 'cell phone');
             const laptops = predictions.filter(p => p.class === 'laptop' || p.class === 'tv');
+            const keyboards = predictions.filter(p => p.class === 'keyboard' || p.class === 'mouse');
             const drinks = predictions.filter(p => p.class === 'bottle' || p.class === 'cup' || p.class === 'wine glass');
             const books = predictions.filter(p => p.class === 'book');
+            const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch');
+            const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
 
+            // 1. Detección de Grupo / Múltiples Personas
             if (personCount >= 2) {
                 const p1 = personsData[0].bbox;
                 const p2 = personsData[1].bbox;
-                const dist = Math.abs((p1[0] + p1[2]/2) - (p2[0] + p2[2]/2));
+                const dist = Math.abs((p1[0] + p1[2] / 2) - (p2[0] + p2[2] / 2));
 
                 if (dist < (p1[2] + p2[2]) * 1.5) {
                     return {
                         key: 'group_interaction',
-                        name: 'Interacción / Conversación en Grupo',
-                        color: BEHAVIOR_COLOR_MAP['group_interaction'].color,
+                        name: BEHAVIOR_COLOR_MAP['group_interaction'] ? BEHAVIOR_COLOR_MAP['group_interaction'].name : 'Interacción / Conversación en Grupo',
+                        color: BEHAVIOR_COLOR_MAP['group_interaction'] ? BEHAVIOR_COLOR_MAP['group_interaction'].color : '#9333EA',
                         confidence: 0.94
                     };
                 }
@@ -2076,7 +2164,7 @@
                 return {
                     key: 'multiple_people',
                     name: `Múltiples Personas Detectadas (${personCount} en escena)`,
-                    color: BEHAVIOR_COLOR_MAP['multiple_people'].color,
+                    color: BEHAVIOR_COLOR_MAP['multiple_people'] ? BEHAVIOR_COLOR_MAP['multiple_people'].color : '#6366F1',
                     confidence: 0.96
                 };
             }
@@ -2084,58 +2172,116 @@
             const mainPerson = personsData[0];
             const [px, py, pw, ph] = mainPerson.bbox;
 
-            // Gesture: Phone Call
+            // 2. Gesto y Acción: Celular (Llamada vs Manipulación)
             for (const phone of phones) {
                 const [bx, by, bw, bh] = phone.bbox;
                 const phoneCenterX = bx + bw / 2;
                 const phoneCenterY = by + bh / 2;
 
-                if (phoneCenterX >= px - pw * 0.25 && phoneCenterX <= px + pw * 1.25 &&
-                    phoneCenterY >= py && phoneCenterY <= py + ph * 0.6) {
-                    return {
-                        key: 'talking_phone',
-                        name: 'Hablando por Teléfono / Celular',
-                        color: BEHAVIOR_COLOR_MAP['talking_phone'].color,
-                        confidence: 0.95
-                    };
+                if (phoneCenterX >= px - pw * 0.3 && phoneCenterX <= px + pw * 1.3) {
+                    if (phoneCenterY >= py && phoneCenterY <= py + ph * 0.42) {
+                        return {
+                            key: 'talking_phone',
+                            name: BEHAVIOR_COLOR_MAP['talking_phone'] ? BEHAVIOR_COLOR_MAP['talking_phone'].name : 'Hablando por Teléfono / Celular',
+                            color: BEHAVIOR_COLOR_MAP['talking_phone'] ? BEHAVIOR_COLOR_MAP['talking_phone'].color : '#FF5722',
+                            confidence: 0.96
+                        };
+                    } else if (phoneCenterY > py + ph * 0.42 && phoneCenterY <= py + ph * 0.9) {
+                        return {
+                            key: 'holding_phone',
+                            name: BEHAVIOR_COLOR_MAP['holding_phone'] ? BEHAVIOR_COLOR_MAP['holding_phone'].name : 'Usando / Manipulando Celular',
+                            color: BEHAVIOR_COLOR_MAP['holding_phone'] ? BEHAVIOR_COLOR_MAP['holding_phone'].color : '#F59E0B',
+                            confidence: 0.95
+                        };
+                    }
                 }
             }
 
-            // Gesture: Drinking
+            // 3. Gesto y Acción: Bebiendo / Consumiendo Líquido
             for (const drink of drinks) {
                 const [dx, dy, dw, dh] = drink.bbox;
                 const drinkCenterX = dx + dw / 2;
                 const drinkCenterY = dy + dh / 2;
 
-                if (drinkCenterX >= px - pw * 0.2 && drinkCenterX <= px + pw * 1.2 &&
+                if (drinkCenterX >= px - pw * 0.25 && drinkCenterX <= px + pw * 1.25 &&
                     drinkCenterY >= py && drinkCenterY <= py + ph * 0.55) {
                     return {
                         key: 'drinking',
-                        name: 'Bebiendo / Consumiendo Líquido',
-                        color: BEHAVIOR_COLOR_MAP['drinking'].color,
+                        name: BEHAVIOR_COLOR_MAP['drinking'] ? BEHAVIOR_COLOR_MAP['drinking'].name : 'Bebiendo / Consumiendo Líquido',
+                        color: BEHAVIOR_COLOR_MAP['drinking'] ? BEHAVIOR_COLOR_MAP['drinking'].color : '#7C3AED',
+                        confidence: 0.94
+                    };
+                }
+            }
+
+            // 4. Acción: Escribiendo en Teclado / Trabajando en Computadora
+            for (const laptop of laptops) {
+                const [lx, ly, lw, lh] = laptop.bbox;
+                const laptopCenterX = lx + lw / 2;
+                const laptopCenterY = ly + lh / 2;
+
+                if (laptopCenterX >= px - pw * 0.35 && laptopCenterX <= px + pw * 1.35 &&
+                    laptopCenterY >= py + ph * 0.25) {
+                    if (keyboards.length > 0) {
+                        return {
+                            key: 'typing_keyboard',
+                            name: BEHAVIOR_COLOR_MAP['typing_keyboard'] ? BEHAVIOR_COLOR_MAP['typing_keyboard'].name : 'Escribiendo en Teclado / PC',
+                            color: BEHAVIOR_COLOR_MAP['typing_keyboard'] ? BEHAVIOR_COLOR_MAP['typing_keyboard'].color : '#10B981',
+                            confidence: 0.96
+                        };
+                    }
+                    return {
+                        key: 'working_laptop',
+                        name: BEHAVIOR_COLOR_MAP['working_laptop'] ? BEHAVIOR_COLOR_MAP['working_laptop'].name : 'Trabajando en Computadora',
+                        color: BEHAVIOR_COLOR_MAP['working_laptop'] ? BEHAVIOR_COLOR_MAP['working_laptop'].color : '#059669',
+                        confidence: 0.96
+                    };
+                }
+            }
+
+            if (keyboards.length > 0) {
+                const kb = keyboards[0];
+                const kbcx = kb.bbox[0] + kb.bbox[2] / 2;
+                const kbcy = kb.bbox[1] + kb.bbox[3] / 2;
+                if (kbcx >= px - pw * 0.35 && kbcx <= px + pw * 1.35 && kbcy >= py + ph * 0.35) {
+                    return {
+                        key: 'typing_keyboard',
+                        name: BEHAVIOR_COLOR_MAP['typing_keyboard'] ? BEHAVIOR_COLOR_MAP['typing_keyboard'].name : 'Escribiendo en Teclado',
+                        color: BEHAVIOR_COLOR_MAP['typing_keyboard'] ? BEHAVIOR_COLOR_MAP['typing_keyboard'].color : '#10B981',
+                        confidence: 0.93
+                    };
+                }
+            }
+
+            // 5. Acción: Leyendo Documento / Libro
+            for (const book of books) {
+                const [bkx, bky, bkw, bkh] = book.bbox;
+                if (bkx + bkw / 2 >= px - pw * 0.2 && bkx + bkw / 2 <= px + pw * 1.2 && bky >= py + ph * 0.2) {
+                    return {
+                        key: 'reading',
+                        name: BEHAVIOR_COLOR_MAP['reading'] ? BEHAVIOR_COLOR_MAP['reading'].name : 'Leyendo Documento / Libro',
+                        color: BEHAVIOR_COLOR_MAP['reading'] ? BEHAVIOR_COLOR_MAP['reading'].color : '#DB2777',
                         confidence: 0.92
                     };
                 }
             }
 
-            // Gesture: Hands up
+            // 6. Dinámica de Movimiento y Gestos de Manos
             const nowTime = performance.now();
             let isRestless = false;
-            if (previousPersons.length > 0 && (nowTime - previousPersonTime < 350)) {
+            let isWaving = false;
+            let isHandsUp = false;
+
+            if (previousPersons.length > 0 && (nowTime - previousPersonTime < 400)) {
                 const prev = previousPersons[0].bbox;
                 const deltaX = Math.abs(px - prev[0]);
                 const deltaY = Math.abs(py - prev[1]);
 
-                if (deltaY > canvasElement.height * 0.09 && py < prev[1]) {
-                    return {
-                        key: 'hands_up',
-                        name: 'Gesto: Manos Arriba / Alerta',
-                        color: BEHAVIOR_COLOR_MAP['hands_up'].color,
-                        confidence: 0.91
-                    };
-                }
-
-                if (deltaX > canvasElement.width * 0.08 || deltaY > canvasElement.height * 0.08) {
+                if (deltaY > canvasElement.height * 0.08 && py < prev[1]) {
+                    isHandsUp = true;
+                } else if (deltaX > canvasElement.width * 0.06 && deltaY < canvasElement.height * 0.045) {
+                    isWaving = true;
+                } else if (deltaX > canvasElement.width * 0.09 || deltaY > canvasElement.height * 0.09) {
                     isRestless = true;
                 }
             }
@@ -2143,49 +2289,67 @@
             previousPersons = personsData;
             previousPersonTime = nowTime;
 
+            if (isHandsUp) {
+                return {
+                    key: 'hands_up',
+                    name: BEHAVIOR_COLOR_MAP['hands_up'] ? BEHAVIOR_COLOR_MAP['hands_up'].name : 'Gesto: Manos Arriba / Alerta',
+                    color: BEHAVIOR_COLOR_MAP['hands_up'] ? BEHAVIOR_COLOR_MAP['hands_up'].color : '#DC2626',
+                    confidence: 0.93
+                };
+            }
+
+            if (isWaving) {
+                return {
+                    key: 'waving',
+                    name: BEHAVIOR_COLOR_MAP['waving'] ? BEHAVIOR_COLOR_MAP['waving'].name : 'Gesto: Saludando con la Mano',
+                    color: BEHAVIOR_COLOR_MAP['waving'] ? BEHAVIOR_COLOR_MAP['waving'].color : '#F59E0B',
+                    confidence: 0.91
+                };
+            }
+
             if (isRestless) {
                 return {
                     key: 'restless',
-                    name: 'Movimiento Rápido / Inquietud',
-                    color: BEHAVIOR_COLOR_MAP['restless'].color,
+                    name: BEHAVIOR_COLOR_MAP['restless'] ? BEHAVIOR_COLOR_MAP['restless'].name : 'Movimiento Rápido / Inquietud',
+                    color: BEHAVIOR_COLOR_MAP['restless'] ? BEHAVIOR_COLOR_MAP['restless'].color : '#0284C7',
                     confidence: 0.89
                 };
             }
 
-            // Working on Computer
-            for (const laptop of laptops) {
-                const [lx, ly, lw, lh] = laptop.bbox;
-                const laptopCenterX = lx + lw / 2;
-                const laptopCenterY = ly + lh / 2;
+            // 7. Postura Corporal: Sentado vs De Pie
+            const aspectRatio = ph / (pw || 1);
+            const isNearSeat = chairs.some(c => {
+                const cx = c.bbox[0] + c.bbox[2] / 2;
+                return (cx >= px - pw * 0.4 && cx <= px + pw * 1.4);
+            });
+            const isNearDesk = tables.some(t => {
+                const tx = t.bbox[0] + t.bbox[2] / 2;
+                return (tx >= px - pw * 0.4 && tx <= px + pw * 1.4);
+            });
 
-                if (laptopCenterX >= px - pw * 0.25 && laptopCenterX <= px + pw * 1.25 &&
-                    laptopCenterY >= py + ph * 0.3) {
-                    return {
-                        key: 'working_laptop',
-                        name: 'Trabajando en Computadora',
-                        color: BEHAVIOR_COLOR_MAP['working_laptop'].color,
-                        confidence: 0.96
-                    };
-                }
+            if ((isNearSeat || isNearDesk) && aspectRatio < 1.55) {
+                return {
+                    key: 'sitting_posture',
+                    name: BEHAVIOR_COLOR_MAP['sitting_posture'] ? BEHAVIOR_COLOR_MAP['sitting_posture'].name : 'Postura: Sentado frente a Escritorio',
+                    color: BEHAVIOR_COLOR_MAP['sitting_posture'] ? BEHAVIOR_COLOR_MAP['sitting_posture'].color : '#3B82F6',
+                    confidence: 0.94
+                };
             }
 
-            // Reading
-            for (const book of books) {
-                const [bkx, bky, bkw, bkh] = book.bbox;
-                if (bkx + bkw/2 >= px && bkx + bkw/2 <= px + pw && bky >= py + ph * 0.2) {
-                    return {
-                        key: 'reading',
-                        name: 'Leyendo Documento / Libro',
-                        color: BEHAVIOR_COLOR_MAP['reading'].color,
-                        confidence: 0.90
-                    };
-                }
+            if (aspectRatio >= 1.7) {
+                return {
+                    key: 'standing_posture',
+                    name: BEHAVIOR_COLOR_MAP['standing_posture'] ? BEHAVIOR_COLOR_MAP['standing_posture'].name : 'Postura: De Pie / Observando',
+                    color: BEHAVIOR_COLOR_MAP['standing_posture'] ? BEHAVIOR_COLOR_MAP['standing_posture'].color : '#06B6D4',
+                    confidence: 0.93
+                };
             }
 
+            // 8. Persona Atenta y Enfocada en Cámara
             return {
                 key: 'attentive',
-                name: 'Persona Atenta / Presente',
-                color: BEHAVIOR_COLOR_MAP['attentive'].color,
+                name: BEHAVIOR_COLOR_MAP['attentive'] ? BEHAVIOR_COLOR_MAP['attentive'].name : 'Persona Atenta / Presente',
+                color: BEHAVIOR_COLOR_MAP['attentive'] ? BEHAVIOR_COLOR_MAP['attentive'].color : '#2563EB',
                 confidence: 0.94
             };
         }
@@ -2209,9 +2373,9 @@
         }
 
         // ==========================================
-        // CANVAS RENDERING WITH EXACT COORDINATES
+        // CANVAS RENDERING WITH EXACT COORDINATES & RICH CONTEXT
         // ==========================================
-        function renderComprehensiveOverlay(predictions, personsData, behavior) {
+        function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts) {
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
             predictions.forEach(pred => {
@@ -2220,12 +2384,14 @@
                 const color = getObjectColor(pred.class);
                 const displayName = getObjectDisplayName(pred.class);
                 const scorePercent = Math.round(pred.score * 100);
+                const contextTag = (objectContexts && objectContexts[pred.id]) ? objectContexts[pred.id] : null;
 
                 ctx.save();
                 ctx.strokeStyle = color;
                 ctx.lineWidth = isPerson ? 3 : 2;
                 ctx.strokeRect(x, y, width, height);
 
+                // Tech corner brackets
                 const bracketSize = Math.min(18, width / 4, height / 4);
                 ctx.lineWidth = 4;
                 ctx.beginPath(); ctx.moveTo(x, y + bracketSize); ctx.lineTo(x, y); ctx.lineTo(x + bracketSize, y); ctx.stroke();
@@ -2247,7 +2413,16 @@
                 ctx.stroke();
                 ctx.restore();
 
-                const labelText = isPerson ? `${displayName} #${pred.id || 1} • ${scorePercent}%` : `${displayName} ${scorePercent}%`;
+                // Etiqueta inteligente con información del estado y contexto
+                let labelText = '';
+                if (isPerson) {
+                    const actionName = (behavior && behavior.name && behavior.key !== 'absent') ? behavior.name : 'Presente';
+                    labelText = `Persona #${pred.id || 1} [${actionName}] • ${scorePercent}%`;
+                } else {
+                    const ctxStr = contextTag ? ` [${contextTag}]` : '';
+                    labelText = `${displayName} #${pred.id || 1}${ctxStr} • ${scorePercent}%`;
+                }
+
                 ctx.font = 'bold 12px "JetBrains Mono", monospace';
                 const textWidth = ctx.measureText(labelText).width;
                 const tagWidth = textWidth + 16;
@@ -2272,19 +2447,20 @@
                 ctx.restore();
             });
 
+            // Badges individuales de tono de cabello en personas
             personsData.forEach(p => {
                 const [px, py, pw, ph] = p.bbox;
                 if (p.hair) {
-                    const hairTag = `[Persona #${p.id} • ${p.hair.name}]`;
+                    const hairTag = `Persona #${p.id} • ${p.hair.name}`;
                     ctx.font = 'bold 12px "JetBrains Mono", monospace';
-                    const tagW = ctx.measureText(hairTag).width + 18;
+                    const tagW = ctx.measureText(hairTag).width + 24;
                     const tagH = 22;
 
                     // Clamping para que la etiqueta de cabello nunca se corte fuera del canvas
                     const clampedHairX = Math.max(4, Math.min(px, canvasElement.width - tagW - 4));
                     let clampedHairY = py - 26;
                     if (clampedHairY < 4) {
-                        clampedHairY = Math.min(py + 26, canvasElement.height - tagH - 4);
+                        clampedHairY = Math.min(py + ph - tagH - 4, canvasElement.height - tagH - 4);
                     }
                     clampedHairY = Math.max(4, Math.min(clampedHairY, canvasElement.height - tagH - 4));
 
@@ -2308,10 +2484,13 @@
                 }
             });
 
+            // Banner inferior en tiempo real mostrando Gesto o Actividad
             if (behavior && behavior.key !== 'absent') {
                 const bannerHeight = 36;
                 const bannerY = canvasElement.height - bannerHeight - 12;
-                const bannerText = `GESTO / COMPORTAMIENTO: ${behavior.name.toUpperCase()}`;
+                const isGesture = (behavior.key.includes('hands_up') || behavior.key.includes('waving') || behavior.key.includes('thumbs_up') || behavior.key.includes('thinking') || behavior.key.includes('face_touch'));
+                const prefix = isGesture ? 'GESTO EN VIVO' : 'ACTIVIDAD EN VIVO';
+                const bannerText = `${prefix}: ${behavior.name.toUpperCase()}`;
 
                 ctx.font = 'bold 13px "JetBrains Mono", monospace';
                 const bannerWidth = ctx.measureText(bannerText).width + 36;
@@ -2347,7 +2526,7 @@
         // ==========================================
         // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
         // ==========================================
-        function processAllDetectionsAndWebSocket(predictions, personsData, behavior) {
+        function processAllDetectionsAndWebSocket(predictions, personsData, behavior, objectContexts) {
             const now = performance.now();
 
             // 1. Seguimiento de personas y objetos en tiempo real por WebSocket
@@ -2357,6 +2536,7 @@
                 const key = `track_${pred.class}_${trackId}`;
                 const lastSent = lastEventSentTimestamps[key] || 0;
                 const posDesc = getPositionDescription(pred.bbox);
+                const ctxTag = (objectContexts && objectContexts[trackId]) ? objectContexts[trackId] : 'Escena';
 
                 // Enviar de inmediato (0ms) al detectar nuevo objetivo, o cada 2.5s mientras siga activo
                 const interval = (lastSent === 0) ? 0 : 2500;
@@ -2375,6 +2555,7 @@
                             track_id: trackId,
                             bbox: pred.bbox,
                             position: posDesc,
+                            context: ctxTag,
                             status: 'seguimiento_activo'
                         }
                     });
@@ -2418,8 +2599,10 @@
                     currentActiveBehavior = behavior.key;
                     lastEventSentTimestamps[behaviorKey] = now;
 
+                    const isGesture = (behavior.key.includes('gesture') || behavior.key === 'hands_up' || behavior.key === 'waving' || behavior.key === 'thumbs_up' || behavior.key === 'thinking' || behavior.key === 'face_touch');
+
                     sendDetectionToServer({
-                        category: behavior.key.startsWith('hands_up') || behavior.key.startsWith('waving') ? 'gesture' : 'behavior',
+                        category: isGesture ? 'gesture' : 'behavior',
                         label: behavior.key,
                         display_name: behavior.name,
                         confidence: behavior.confidence,
@@ -2456,42 +2639,31 @@
         // ==========================================
         // RADAR & KPIS UPDATE (THROTTLED)
         // ==========================================
-        function updateKPIsAndRadar(predictions, personsData, behavior) {
+        function updateKPIsAndRadar(predictions, personsData, behavior, objectContexts) {
             const countBadge = document.getElementById('activeCountBadge');
             const kpiPersons = document.getElementById('kpiPersonsCount');
             const kpiHair = document.getElementById('kpiHairTone');
             const kpiBehavior = document.getElementById('kpiBehavior');
             const kpiObjects = document.getElementById('kpiObjectsCount');
 
-            const hudPersons = document.getElementById('hudPersonsBadge');
-            const hudHair = document.getElementById('hudHairBadge');
-            const hudBehavior = document.getElementById('hudBehaviorBadge');
-
             const personCount = personsData.length;
             kpiPersons.innerText = personCount === 1 ? '1 persona' : `${personCount} personas`;
-            hudPersons.innerText = `Personas: ${personCount}`;
 
             if (personsData.length > 0 && personsData[0].hair) {
                 const hName = personsData[0].hair.name.replace('Cabello ', '');
                 kpiHair.innerText = hName;
                 kpiHair.style.color = personsData[0].hair.color;
-                hudHair.innerText = `Cabello: ${hName}`;
-                hudHair.style.borderColor = personsData[0].hair.color;
             } else {
                 kpiHair.innerText = 'No detectado';
                 kpiHair.style.color = '#94a3b8';
-                hudHair.innerText = 'Cabello: -';
             }
 
             if (behavior && behavior.key !== 'absent') {
                 kpiBehavior.innerText = behavior.name;
                 kpiBehavior.style.color = behavior.color;
-                hudBehavior.innerText = `Gesto: ${behavior.name}`;
-                hudBehavior.style.borderColor = behavior.color;
             } else {
                 kpiBehavior.innerText = 'Ausente';
                 kpiBehavior.style.color = '#64748b';
-                hudBehavior.innerText = 'Gesto: Ausente';
             }
 
             const nonPersons = predictions.filter(p => p.class !== 'person');
@@ -2505,11 +2677,12 @@
             } else {
                 radarPersons.innerHTML = personsData.map(p => `
                     <div class="p-1.5 rounded-lg bg-slate-900 border border-blue-500/30 flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                            <span class="font-bold text-white">Persona #${p.id}</span>
+                        <div class="flex items-center gap-1.5 truncate">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                            <span class="font-bold text-white truncate">Persona #${p.id}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 font-semibold border border-blue-800/50 truncate">${(behavior && behavior.key !== 'absent') ? behavior.name : 'Presente'}</span>
                         </div>
-                        <span class="text-[11px] font-semibold" style="color: ${p.hair ? p.hair.color : '#94a3b8'}">
+                        <span class="text-[11px] font-semibold shrink-0 ml-1.5" style="color: ${p.hair ? p.hair.color : '#94a3b8'}">
                             ${p.hair ? p.hair.name : 'Cabello N/D'}
                         </span>
                     </div>
@@ -2538,13 +2711,15 @@
             } else {
                 radarTech.innerHTML = techItems.map(t => {
                     const c = getObjectColor(t.class);
+                    const ctxTag = (objectContexts && objectContexts[t.id]) ? objectContexts[t.id] : 'En escena';
                     return `
                         <div class="p-1.5 rounded-lg bg-slate-900 border text-xs flex items-center justify-between" style="border-color: ${c}44;">
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-1.5 truncate">
                                 <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${c};"></span>
-                                <span class="text-slate-200 font-medium">${getObjectDisplayName(t.class)}</span>
+                                <span class="text-slate-200 font-medium truncate">${getObjectDisplayName(t.class)}</span>
+                                <span class="text-[10px] text-cyan-400 font-mono-code px-1 rounded bg-cyan-950/60 border border-cyan-800/40 shrink-0">${ctxTag}</span>
                             </div>
-                            <span class="text-[11px] font-mono-code text-cyan-400">${Math.round(t.score*100)}%</span>
+                            <span class="text-[11px] font-mono-code text-cyan-400 shrink-0 ml-1">${Math.round(t.score*100)}%</span>
                         </div>
                     `;
                 }).join('');
@@ -2558,11 +2733,13 @@
             } else {
                 radarFurniture.innerHTML = furnitureItems.map(f => {
                     const c = getObjectColor(f.class);
+                    const ctxTag = (objectContexts && objectContexts[f.id]) ? objectContexts[f.id] : 'En entorno';
                     return `
                         <div class="p-1.5 rounded-lg bg-slate-900 border text-xs flex items-center justify-between" style="border-color: ${c}44;">
                             <div class="flex items-center gap-1.5 truncate">
                                 <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${c};"></span>
                                 <span class="text-slate-200 font-medium truncate">${getObjectDisplayName(f.class)}</span>
+                                <span class="text-[10px] text-slate-400 font-mono-code px-1 rounded bg-slate-800/60 border border-slate-700/50 shrink-0">${ctxTag}</span>
                             </div>
                             <span class="text-[11px] font-mono-code text-cyan-400 shrink-0 ml-1">${Math.round(f.score*100)}%</span>
                         </div>
