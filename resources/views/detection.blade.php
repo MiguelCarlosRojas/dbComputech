@@ -745,12 +745,11 @@
                 </button>
             </div>
             <img id="snapshotImg" class="rounded-xl border border-slate-800 w-full object-contain max-h-[65vh]" />
-            <div class="flex justify-end gap-2">
-                <a id="snapshotDownload" download="captura-dbcomputech.png" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition flex items-center gap-1.5">
+            <div class="flex justify-end">
+                <a id="snapshotDownload" download="captura-dbcomputech.png" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     Descargar de Nuevo
                 </a>
-                <x-button variant="secondary" size="sm" onclick="closeSnapshotModal()">Cerrar</x-button>
             </div>
         </div>
     </div>
@@ -1220,9 +1219,10 @@
 
             item.innerHTML = `
                 <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 truncate">
+                    <div class="flex items-center gap-1.5 truncate">
                         <span class="w-3 h-3 rounded-full shrink-0 shadow-sm" style="background-color: ${data.color}"></span>
                         <span class="text-xs font-bold text-white truncate">${data.display_name}</span>
+                        ${data.details && data.details.position ? `<span class="text-[9px] px-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono-code shrink-0">${data.details.position}</span>` : ''}
                     </div>
                     <span class="text-[11px] font-mono-code text-slate-400 shrink-0">${formattedTime}</span>
                 </div>
@@ -2241,14 +2241,26 @@
                 const labelText = isPerson ? `${displayName} #${pred.id || 1} • ${scorePercent}%` : `${displayName} ${scorePercent}%`;
                 ctx.font = 'bold 12px "JetBrains Mono", monospace';
                 const textWidth = ctx.measureText(labelText).width;
+                const tagWidth = textWidth + 16;
                 const tagHeight = 22;
-                const tagY = y > tagHeight + 5 ? y - tagHeight - 2 : y + 2;
 
+                // Smart bounds clamping: Garantiza que la etiqueta NUNCA se corte en las esquinas o bordes
+                const clampedTagX = Math.max(4, Math.min(x, canvasElement.width - tagWidth - 4));
+                let clampedTagY = y - tagHeight - 3;
+                if (clampedTagY < 4) {
+                    clampedTagY = (y + height + tagHeight + 4 <= canvasElement.height) ? (y + height + 3) : (y + 3);
+                }
+                clampedTagY = Math.max(4, Math.min(clampedTagY, canvasElement.height - tagHeight - 4));
+
+                ctx.save();
                 ctx.fillStyle = color;
-                ctx.fillRect(x, tagY, textWidth + 14, tagHeight);
+                ctx.beginPath();
+                ctx.roundRect(clampedTagX, clampedTagY, tagWidth, tagHeight, 5);
+                ctx.fill();
 
                 ctx.fillStyle = '#0a0f1d';
-                ctx.fillText(labelText, x + 7, tagY + 15);
+                ctx.fillText(labelText, clampedTagX + 8, clampedTagY + 15);
+                ctx.restore();
             });
 
             personsData.forEach(p => {
@@ -2256,25 +2268,33 @@
                 if (p.hair) {
                     const hairTag = `[Persona #${p.id} • ${p.hair.name}]`;
                     ctx.font = 'bold 12px "JetBrains Mono", monospace';
-                    const tagW = ctx.measureText(hairTag).width + 16;
-                    const tagY = Math.max(26, py - 26);
+                    const tagW = ctx.measureText(hairTag).width + 18;
+                    const tagH = 22;
+
+                    // Clamping para que la etiqueta de cabello nunca se corte fuera del canvas
+                    const clampedHairX = Math.max(4, Math.min(px, canvasElement.width - tagW - 4));
+                    let clampedHairY = py - 26;
+                    if (clampedHairY < 4) {
+                        clampedHairY = Math.min(py + 26, canvasElement.height - tagH - 4);
+                    }
+                    clampedHairY = Math.max(4, Math.min(clampedHairY, canvasElement.height - tagH - 4));
 
                     ctx.save();
-                    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
                     ctx.strokeStyle = p.hair.color;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.roundRect(px, tagY, tagW, 22, 6);
+                    ctx.roundRect(clampedHairX, clampedHairY, tagW, tagH, 6);
                     ctx.fill();
                     ctx.stroke();
 
                     ctx.fillStyle = p.hair.color;
                     ctx.beginPath();
-                    ctx.arc(px + 10, tagY + 11, 4.5, 0, Math.PI * 2);
+                    ctx.arc(clampedHairX + 10, clampedHairY + 11, 4.5, 0, Math.PI * 2);
                     ctx.fill();
 
                     ctx.fillStyle = '#f8fafc';
-                    ctx.fillText(hairTag, px + 20, tagY + 15);
+                    ctx.fillText(hairTag, clampedHairX + 20, clampedHairY + 15);
                     ctx.restore();
                 }
             });
@@ -2304,58 +2324,86 @@
             }
         }
 
+        function getPositionDescription(bbox) {
+            if (!bbox || bbox.length < 4) return 'Escena';
+            const cx = bbox[0] + bbox[2] / 2;
+            const cy = bbox[1] + bbox[3] / 2;
+            const w = canvasElement.width || 640;
+            const h = canvasElement.height || 480;
+            const horiz = cx < w * 0.38 ? 'Izquierda' : (cx > w * 0.62 ? 'Derecha' : 'Centro');
+            const vert = cy < h * 0.38 ? 'Superior' : (cy > h * 0.62 ? 'Inferior' : 'Medio');
+            return `${horiz}-${vert}`;
+        }
+
         // ==========================================
-        // SMART THROTTLED WEBSOCKET DISPATCHER
+        // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
         // ==========================================
         function processAllDetectionsAndWebSocket(predictions, personsData, behavior) {
             const now = performance.now();
-            const THROTTLE_MS = 5000;
 
+            // 1. Seguimiento de personas y objetos en tiempo real por WebSocket
             predictions.forEach(pred => {
-                if (pred.class === 'person') return;
-                const key = `obj_${pred.class}`;
+                const trackId = pred.id || 1;
+                const isPerson = pred.class === 'person';
+                const key = `track_${pred.class}_${trackId}`;
                 const lastSent = lastEventSentTimestamps[key] || 0;
+                const posDesc = getPositionDescription(pred.bbox);
 
-                if (now - lastSent >= THROTTLE_MS) {
+                // Enviar de inmediato (0ms) al detectar nuevo objetivo, o cada 2.5s mientras siga activo
+                const interval = (lastSent === 0) ? 0 : 2500;
+
+                if (now - lastSent >= interval) {
                     lastEventSentTimestamps[key] = now;
+                    const displayName = isPerson ? `Persona #${trackId}` : `${getObjectDisplayName(pred.class)} #${trackId}`;
+
                     sendDetectionToServer({
-                        category: 'object',
+                        category: isPerson ? 'behavior' : 'object',
                         label: pred.class,
-                        display_name: getObjectDisplayName(pred.class),
+                        display_name: displayName,
                         confidence: pred.score,
                         color: getObjectColor(pred.class),
-                        details: { bbox: pred.bbox }
+                        details: {
+                            track_id: trackId,
+                            bbox: pred.bbox,
+                            position: posDesc,
+                            status: 'seguimiento_activo'
+                        }
                     });
                 }
             });
 
+            // 2. Muestreo de tono de cabello por WebSocket
             if (personsData.length > 0) {
                 const mainPerson = personsData[0];
                 if (mainPerson.hair && currentDetectedHair !== mainPerson.hair.key) {
-                    const hairKey = `hair_${mainPerson.hair.key}`;
+                    const hairKey = `hair_${mainPerson.id || 1}_${mainPerson.hair.key}`;
                     const lastHairSent = lastEventSentTimestamps[hairKey] || 0;
 
-                    if (now - lastHairSent >= 6000) {
+                    if (now - lastHairSent >= 3500) {
                         currentDetectedHair = mainPerson.hair.key;
                         lastEventSentTimestamps[hairKey] = now;
 
                         sendDetectionToServer({
                             category: 'hair',
                             label: mainPerson.hair.key,
-                            display_name: mainPerson.hair.name,
+                            display_name: `Persona #${mainPerson.id || 1} • ${mainPerson.hair.name}`,
                             confidence: mainPerson.hair.confidence,
                             color: mainPerson.hair.color,
-                            details: { rgb: mainPerson.hair.rgb }
+                            details: {
+                                track_id: mainPerson.id || 1,
+                                rgb: mainPerson.hair.rgb
+                            }
                         });
                     }
                 }
             }
 
+            // 3. Gestos y comportamiento por WebSocket
             if (behavior && behavior.key !== 'absent') {
                 const behaviorKey = `beh_${behavior.key}`;
                 const lastBehaviorSent = lastEventSentTimestamps[behaviorKey] || 0;
                 const changed = currentActiveBehavior !== behavior.key;
-                const interval = changed ? 600 : 7000;
+                const interval = changed ? 500 : 4000;
 
                 if (now - lastBehaviorSent >= interval) {
                     currentActiveBehavior = behavior.key;
