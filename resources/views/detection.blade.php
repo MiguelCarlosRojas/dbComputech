@@ -36,6 +36,9 @@
     <!-- Pusher JS for Laravel Reverb WebSockets -->
     <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
 
+    <!-- WebM Seekable Duration Fixer (Permite adelantar y retroceder en reproductores) -->
+    <script src="/js/fix-webm-duration.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
@@ -807,12 +810,132 @@
         let hasSnapshotPermission = false;
         let hasRecordPermission = false;
 
-        // Video Recording State
+        // Video Recording State (Composite Stream: Cámara Real + HUD Detecciones)
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
         let recordStartTime = 0;
         let recordTimerInterval = null;
+        let recordingMimeType = 'video/webm';
+        let recordingExtension = 'webm';
+        const recordingCanvas = document.createElement('canvas');
+        const recordingCtx = recordingCanvas.getContext('2d', { alpha: false });
+
+        // Multi-Target Real-Time Tracker (Seguimiento Continuo de Personas y Objetos)
+        let activeTracks = [];
+        let nextTrackId = 1;
+        const TRACK_MAX_MISSED_CYCLES = 12; // Mantiene el seguimiento ~0.8s si la IA parpadea
+        const TRACK_LERP_FACTOR = 0.38; // Desplazamiento fluido para seguir el movimiento a 60 FPS
+
+        function computeIoU(boxA, boxB) {
+            const xA = Math.max(boxA[0], boxB[0]);
+            const yA = Math.max(boxA[1], boxB[1]);
+            const xB = Math.min(boxA[0] + boxA[2], boxB[0] + boxB[2]);
+            const yB = Math.min(boxA[1] + boxA[3], boxB[1] + boxB[3]);
+
+            const interW = Math.max(0, xB - xA);
+            const interH = Math.max(0, yB - yA);
+            const interArea = interW * interH;
+
+            const areaA = boxA[2] * boxA[3];
+            const areaB = boxB[2] * boxB[3];
+            const unionArea = areaA + areaB - interArea;
+
+            return unionArea > 0 ? interArea / unionArea : 0;
+        }
+
+        function getCentroidDistance(boxA, boxB) {
+            const cAx = boxA[0] + boxA[2] / 2;
+            const cAy = boxA[1] + boxA[3] / 2;
+            const cBx = boxB[0] + boxB[2] / 2;
+            const cBy = boxB[1] + boxB[3] / 2;
+            return Math.hypot(cAx - cBx, cAy - cBy);
+        }
+
+        function updateObjectTracks(newPredictions) {
+            const matchedDetections = new Set();
+
+            // 1. Asignar detecciones a tracks existentes por clase, IoU y proximidad
+            for (const track of activeTracks) {
+                let bestMatchIndex = -1;
+                let bestMatchScore = 0;
+
+                for (let i = 0; i < newPredictions.length; i++) {
+                    if (matchedDetections.has(i)) continue;
+                    const pred = newPredictions[i];
+                    if (pred.class !== track.class) continue;
+
+                    const iou = computeIoU(track.targetBbox, pred.bbox);
+                    const dist = getCentroidDistance(track.targetBbox, pred.bbox);
+                    const maxDim = Math.max(track.targetBbox[2], track.targetBbox[3], pred.bbox[2], pred.bbox[3], 50);
+                    const normDist = dist / maxDim;
+
+                    let score = iou;
+                    if (normDist < 0.75) {
+                        score = Math.max(score, 0.45 - (normDist * 0.35));
+                    }
+
+                    if (score > 0.12 && score > bestMatchScore) {
+                        bestMatchScore = score;
+                        bestMatchIndex = i;
+                    }
+                }
+
+                if (bestMatchIndex !== -1) {
+                    const pred = newPredictions[bestMatchIndex];
+                    matchedDetections.add(bestMatchIndex);
+
+                    // Calcular vector de velocidad del movimiento
+                    const dx = pred.bbox[0] - track.targetBbox[0];
+                    const dy = pred.bbox[1] - track.targetBbox[1];
+                    const dw = pred.bbox[2] - track.targetBbox[2];
+                    const dh = pred.bbox[3] - track.targetBbox[3];
+
+                    track.velocity = [
+                        track.velocity[0] * 0.3 + dx * 0.7,
+                        track.velocity[1] * 0.3 + dy * 0.7,
+                        track.velocity[2] * 0.3 + dw * 0.7,
+                        track.velocity[3] * 0.3 + dh * 0.7
+                    ];
+
+                    track.targetBbox = [...pred.bbox];
+                    track.score = Math.max(track.score * 0.15 + pred.score * 0.85, pred.score);
+                    track.missedCycles = 0;
+                    track.lastSeen = performance.now();
+                } else {
+                    // Predecir posición con velocidad para mantener seguimiento ininterrumpido
+                    track.missedCycles = (track.missedCycles || 0) + 1;
+                    track.targetBbox[0] += (track.velocity[0] || 0) * 0.5;
+                    track.targetBbox[1] += (track.velocity[1] || 0) * 0.5;
+                    track.targetBbox[2] += (track.velocity[2] || 0) * 0.2;
+                    track.targetBbox[3] += (track.velocity[3] || 0) * 0.2;
+                    track.targetBbox[0] = Math.max(0, Math.min(canvasElement.width - 20, track.targetBbox[0]));
+                    track.targetBbox[1] = Math.max(0, Math.min(canvasElement.height - 20, track.targetBbox[1]));
+                }
+            }
+
+            // 2. Registrar nuevas detecciones como nuevos tracks
+            for (let i = 0; i < newPredictions.length; i++) {
+                if (!matchedDetections.has(i)) {
+                    const pred = newPredictions[i];
+                    activeTracks.push({
+                        id: nextTrackId++,
+                        class: pred.class,
+                        bbox: [...pred.bbox],
+                        targetBbox: [...pred.bbox],
+                        velocity: [0, 0, 0, 0],
+                        score: pred.score,
+                        missedCycles: 0,
+                        hair: null,
+                        firstSeen: performance.now(),
+                        lastSeen: performance.now()
+                    });
+                }
+            }
+
+            // 3. Filtrar tracks que excedan el límite de tolerancia
+            activeTracks = activeTracks.filter(t => (t.missedCycles || 0) <= TRACK_MAX_MISSED_CYCLES);
+        }
 
         // High-Precision Fast Inference Canvas (640x360 maintains far-away and subtle object features)
         const inferCanvas = document.createElement('canvas');
@@ -1538,6 +1661,7 @@
         function stopCamera() {
             if (isRecording) stopRecording();
             isCameraActive = false;
+            activeTracks = [];
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             if (inferenceTimer) clearTimeout(inferenceTimer);
             if (videoElement.srcObject) {
@@ -1667,7 +1791,27 @@
                 canvasElement.height = videoElement.videoHeight;
             }
 
+            // Interpolación de movimiento a 60 FPS (Seguimiento continuo de personas y objetos)
+            for (const track of activeTracks) {
+                track.bbox[0] += (track.targetBbox[0] - track.bbox[0]) * TRACK_LERP_FACTOR;
+                track.bbox[1] += (track.targetBbox[1] - track.bbox[1]) * TRACK_LERP_FACTOR;
+                track.bbox[2] += (track.targetBbox[2] - track.bbox[2]) * TRACK_LERP_FACTOR;
+                track.bbox[3] += (track.targetBbox[3] - track.bbox[3]) * TRACK_LERP_FACTOR;
+            }
+
             renderComprehensiveOverlay(cachedPredictions, cachedPersonsData, cachedBehavior);
+
+            // Composición para grabación de video (Cámara Web Real + Bounding Boxes & HUD de IA)
+            if (isRecording) {
+                if (recordingCanvas.width !== videoElement.videoWidth || recordingCanvas.height !== videoElement.videoHeight) {
+                    recordingCanvas.width = videoElement.videoWidth;
+                    recordingCanvas.height = videoElement.videoHeight;
+                }
+                // 1. Dibuja la cámara real en alta definición
+                recordingCtx.drawImage(videoElement, 0, 0, recordingCanvas.width, recordingCanvas.height);
+                // 2. Dibuja las cajas delimitadoras, etiquetas y HUD en tiempo real
+                recordingCtx.drawImage(canvasElement, 0, 0, recordingCanvas.width, recordingCanvas.height);
+            }
 
             frameCount++;
             const now = performance.now();
@@ -1734,20 +1878,31 @@
                     ]
                 }));
 
-                cachedPredictions = scaled;
-                cachedPersonsData = analyzePersonsAndHair(scaled);
-                cachedBehavior = analyzeGesturesAndBehavior(scaled, cachedPersonsData);
+                // Actualizar el motor de seguimiento multi-objetivo continuo
+                updateObjectTracks(scaled);
+
+                // Proyectar los tracks seguidos a la caché de predicciones y personas
+                const trackedPredictions = activeTracks.map(t => ({
+                    id: t.id,
+                    class: t.class,
+                    score: t.score,
+                    bbox: t.bbox
+                }));
+
+                cachedPredictions = trackedPredictions;
+                cachedPersonsData = analyzePersonsAndHair(activeTracks);
+                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData);
 
                 const infDuration = Math.round(performance.now() - startTime);
                 document.getElementById('inferenceCounter').innerText = `${infDuration} ms`;
 
-                processAllDetectionsAndWebSocket(scaled, cachedPersonsData, cachedBehavior);
+                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior);
 
                 // Instant UI feedback (every 80ms)
                 const now = performance.now();
                 if (now - lastDomUpdateTime > 80) {
                     lastDomUpdateTime = now;
-                    updateKPIsAndRadar(scaled, cachedPersonsData, cachedBehavior);
+                    updateKPIsAndRadar(trackedPredictions, cachedPersonsData, cachedBehavior);
                 }
 
             } catch (err) {
@@ -1758,36 +1913,33 @@
         }
 
         // ==========================================
-        // HAIR COLOR ANALYSIS (THROTTLED SAMPLING)
+        // HAIR COLOR ANALYSIS (THROTTLED SAMPLING CON SEGUIMIENTO)
         // ==========================================
-        function analyzePersonsAndHair(predictions) {
-            const persons = predictions.filter(p => p.class === 'person');
-            if (persons.length === 0) return [];
+        function analyzePersonsAndHair(items) {
+            const personTracks = activeTracks.filter(p => p.class === 'person');
+            if (personTracks.length === 0) return [];
 
             const now = performance.now();
             const shouldSampleHair = (now - lastHairSampleTime > 1800);
             if (shouldSampleHair) lastHairSampleTime = now;
 
-            return persons.map((person, index) => {
-                const [x, y, w, h] = person.bbox;
-                const personId = index + 1;
+            return personTracks.map((track) => {
+                const [x, y, w, h] = track.bbox;
 
-                let hairAnalysis = null;
-                if (shouldSampleHair) {
+                if (shouldSampleHair || !track.hair) {
                     const hairY = Math.max(0, y);
                     const hairH = Math.max(10, h * 0.18);
                     const hairW = Math.max(10, w * 0.55);
                     const hairX = Math.max(0, x + (w - hairW) / 2);
-                    hairAnalysis = sampleHairTone(hairX, hairY, hairW, hairH);
-                } else if (cachedPersonsData[index] && cachedPersonsData[index].hair) {
-                    hairAnalysis = cachedPersonsData[index].hair;
+                    const hairAnalysis = sampleHairTone(hairX, hairY, hairW, hairH);
+                    if (hairAnalysis) track.hair = hairAnalysis;
                 }
 
                 return {
-                    id: personId,
-                    bbox: person.bbox,
-                    score: person.score,
-                    hair: hairAnalysis
+                    id: track.id,
+                    bbox: track.bbox,
+                    score: track.score,
+                    hair: track.hair
                 };
             });
         }
@@ -2073,7 +2225,20 @@
                 ctx.beginPath(); ctx.moveTo(x + width - bracketSize, y + height); ctx.lineTo(x + width, y + height); ctx.lineTo(x + width, y + height - bracketSize); ctx.stroke();
                 ctx.restore();
 
-                const labelText = `${displayName} ${scorePercent}%`;
+                // Retícula central de seguimiento activo
+                const cx = x + width / 2;
+                const cy = y + height / 2;
+                ctx.save();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy);
+                ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7);
+                ctx.stroke();
+                ctx.restore();
+
+                const labelText = isPerson ? `${displayName} #${pred.id || 1} • ${scorePercent}%` : `${displayName} ${scorePercent}%`;
                 ctx.font = 'bold 12px "JetBrains Mono", monospace';
                 const textWidth = ctx.measureText(labelText).width;
                 const tagHeight = 22;
@@ -2447,15 +2612,48 @@
 
         function startRecording() {
             try {
-                const stream = canvasElement.captureStream(30);
+                if (!videoElement || videoElement.videoWidth === 0) {
+                    alert('Espera a que el video de la cámara esté activo para grabar.');
+                    return;
+                }
 
-                let options = { mimeType: 'video/webm;codecs=vp9' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: 'video/webm' };
+                recordingCanvas.width = videoElement.videoWidth;
+                recordingCanvas.height = videoElement.videoHeight;
+
+                // Captura compuesta: cámara real + bounding boxes y HUD en tiempo real
+                const stream = recordingCanvas.captureStream(30);
+
+                // Agregar pista de audio del micrófono si existe en el stream de la cámara
+                if (videoElement.srcObject) {
+                    const audioTracks = videoElement.srcObject.getAudioTracks();
+                    if (audioTracks && audioTracks.length > 0) {
+                        stream.addTrack(audioTracks[0]);
+                    }
+                }
+
+                // Detectar formato compatible preferente (MP4 para soporte nativo de Windows o WebM seekable)
+                recordingMimeType = 'video/webm;codecs=vp9,opus';
+                recordingExtension = 'webm';
+
+                if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')) {
+                    recordingMimeType = 'video/mp4;codecs=avc1,mp4a.40.2';
+                    recordingExtension = 'mp4';
+                } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    recordingMimeType = 'video/mp4';
+                    recordingExtension = 'mp4';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+                    recordingMimeType = 'video/webm;codecs=vp9,opus';
+                    recordingExtension = 'webm';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+                    recordingMimeType = 'video/webm;codecs=vp8,opus';
+                    recordingExtension = 'webm';
+                } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                    recordingMimeType = 'video/webm';
+                    recordingExtension = 'webm';
                 }
 
                 recordedChunks = [];
-                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMimeType });
 
                 mediaRecorder.ondataavailable = (e) => {
                     if (e.data && e.data.size > 0) {
@@ -2481,7 +2679,7 @@
 
                 showToastNotification({
                     category: 'permission',
-                    display_name: 'Grabación de Video Iniciada',
+                    display_name: 'Grabación Compuesta Iniciada (Cámara + IA)',
                     color: '#EF4444',
                     confidence: 100
                 });
@@ -2503,27 +2701,42 @@
         }
 
         async function saveRecordedVideoToWindows() {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            let blob = new Blob(recordedChunks, { type: recordingMimeType });
+            const durationMs = Math.max(1000, Date.now() - recordStartTime);
+
+            // Inyectar metadatos de duración para permitir avance y retroceso (seeking) en reproductores
+            if (recordingExtension === 'webm' && typeof window.ysFixWebmDuration === 'function') {
+                try {
+                    blob = await window.ysFixWebmDuration(blob, durationMs, { logger: false });
+                } catch (e) {
+                    console.warn('WebM duration fix notice:', e);
+                }
+            }
+
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `grabacion-dbcomputech-${timestamp}.webm`;
+            const filename = `grabacion-dbcomputech-${timestamp}.${recordingExtension}`;
 
             let savedLocally = false;
             try {
                 if ('showSaveFilePicker' in window) {
-                    const handle = await window.showSaveFilePicker({
+                    const pickerOptions = {
                         suggestedName: filename,
-                        types: [{
-                            description: 'Video WebM (*.webm)',
+                        types: recordingExtension === 'mp4' ? [{
+                            description: 'Video MP4 (*.mp4)',
+                            accept: { 'video/mp4': ['.mp4'] }
+                        }] : [{
+                            description: 'Video WebM Seekable (*.webm)',
                             accept: { 'video/webm': ['.webm'] }
                         }]
-                    });
+                    };
+                    const handle = await window.showSaveFilePicker(pickerOptions);
                     const writable = await handle.createWritable();
                     await writable.write(blob);
                     await writable.close();
                     savedLocally = true;
                     showToastNotification({
                         category: 'permission',
-                        display_name: 'Video guardado en tu carpeta de Windows',
+                        display_name: `Video guardado en tu carpeta (${filename})`,
                         color: '#10B981',
                         confidence: 100
                     });
@@ -2544,7 +2757,7 @@
 
                 showToastNotification({
                     category: 'permission',
-                    display_name: 'Video descargado a tu equipo Windows',
+                    display_name: `Video descargado a Windows (${filename})`,
                     color: '#06B6D4',
                     confidence: 100
                 });

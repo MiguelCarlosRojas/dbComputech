@@ -58,13 +58,14 @@ graph LR
 
 ## Características Principales
 
-### 1. Detección de Entorno y Objetos (80 Clases COCO-SSD)
+### 1. Detección y Seguimiento Continuo Multi-Objetivo (80 Clases COCO-SSD)
 * Reconocimiento y etiquetado en tiempo real en español: personas, celulares, laptops, monitores, sillas, mesas, botellas, tazas, libros, mochilas, teclados, mouse, etc.
-* Umbral de confianza adaptativo optimizado para identificar elementos en primer plano y en el fondo lejano.
-* Cajas delimitadoras (*bounding boxes*) vectoriales con renderizado GPU directo en `<canvas>`.
+* **Motor de Seguimiento Cinematográfico (Multi-Target Tracking)**: Algoritmo de correspondencia por IoU y proximidad centroide que sigue activamente a personas y objetos a medida que se mueven por el espacio.
+* **Interpolación Fluida a 60 FPS (LERP)**: Las cajas delimitadoras y retículas de objetivo (*target lock*) se desplazan suavemente acompañando la trayectoria del sujeto u objeto sin saltos ni parpadeos.
+* **Persistencia de Detección**: Mantiene el bloqueo del objetivo aun si la inferencia de IA pierde temporalmente algunos cuadros por oclusión o movimiento rápido.
 
-### 2. Detección Multi-Persona y Comportamiento Grupal
-* Seguimiento de presencia individual y conteo de personas en escena.
+### 2. Detección Multi-Persona, Identidad Persistente y Comportamiento Grupal
+* Seguimiento de presencia individual con identificadores persistentes (Persona #1, Persona #2...) y conteo en tiempo real.
 * Detección de interacción grupal cuando dos o más individuos entran en el encuadre.
 
 ### 3. Muestreo Cromático de Cabello Humano (Pixel RGB/HSL)
@@ -99,9 +100,10 @@ graph LR
 * Paginación exacta de **15 registros por página** con controles interactivos (Anterior, Siguiente, Indicador de Página y Conteo Total).
 * Capacidad de depuración y vaciado de registros en tiempo real.
 
-### 8. Centro de Permisos de Windows y Almacenamiento Local
+### 8. Centro de Permisos de Windows y Grabación Forense Compuesta
 * Flujo de autorización para captura de pantalla fotográfica instantánea en PNG.
-* Grabación de video en tiempo real en formato WebM con temporizador HUD.
+* **Grabación Compuesta de Alta Fidelidad**: Captura continua que combina la cámara web real con las cajas delimitadoras, retículas y HUD de inteligencia artificial.
+* **Soporte de Búsqueda y Navegación Temporal (Timeline Seeking)**: Integración con formato nativo MP4 y WebM con inyección de metadatos de duración para permitir avance rápido y retroceso en reproductores de Windows y navegadores.
 * Guardado directo en carpetas del sistema operativo mediante la File System Access API de Windows.
 
 ### 9. 100% Vectores SVG y Cero Emojis
