@@ -74,7 +74,16 @@ class DetectionController extends Controller
      */
     public const BEHAVIOR_COLORS = [
         'talking_phone' => ['name' => 'Hablando por Teléfono / Celular', 'color' => '#FF5722'],
+        'phone_call' => ['name' => 'Llamada Telefónica Activa (En Oreja)', 'color' => '#FF3D00'],
         'holding_phone' => ['name' => 'Usando / Manipulando Celular', 'color' => '#F59E0B'],
+        'hand_fingers' => ['name' => 'Gesto de Mano / Conteo de Dedos', 'color' => '#10B981'],
+        'both_hands' => ['name' => 'Ambas Manos Visibles en Escena', 'color' => '#06B6D4'],
+        'eating_food' => ['name' => 'Comiendo / Degustando Alimento', 'color' => '#F97316'],
+        'showing_fruit_veg' => ['name' => 'Mostrando Fruta / Verdura Fresca', 'color' => '#84CC16'],
+        'showing_food' => ['name' => 'Mostrando Comida / Alimento', 'color' => '#EAB308'],
+        'showing_object' => ['name' => 'Mostrando Objeto a la Cámara', 'color' => '#38BDF8'],
+        'retrieving_item' => ['name' => 'Sacando / Guardando en Mochila o Bolso', 'color' => '#A855F7'],
+        'using_utensil' => ['name' => 'Manipulando Utensilio / Cubierto', 'color' => '#EC4899'],
         'working_laptop' => ['name' => 'Trabajando en Computadora', 'color' => '#059669'],
         'typing_keyboard' => ['name' => 'Escribiendo en Teclado', 'color' => '#10B981'],
         'drinking' => ['name' => 'Bebiendo / Consumiendo Líquido', 'color' => '#7C3AED'],

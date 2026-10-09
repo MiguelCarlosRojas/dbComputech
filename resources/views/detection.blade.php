@@ -33,6 +33,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 
+    <!-- MediaPipe Hands for Real-Time Finger Counting & 3D Skeletal Landmark Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
     <!-- Pusher JS for Laravel Reverb WebSockets -->
     <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
 
@@ -940,6 +944,10 @@
         let cachedPredictions = [];
         let cachedPersonsData = [];
         let cachedObjectContexts = {};
+        let cachedHandResults = [];
+        let mediaPipeHands = null;
+        let isHandsModelLoading = false;
+        let isHandsInferring = false;
         let cachedBehavior = { key: 'absent', name: 'Persona Ausente', color: '#64748B', confidence: 0.95 };
         let lastInferenceTime = 0;
         let lastHairSampleTime = 0;
@@ -1763,10 +1771,33 @@
                     console.warn('Fallback a lite_mobilenet_v2:', loadErr);
                     cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
                 }
+
+                // Inicializar MediaPipe Hands para detección de manos y conteo de dedos
+                if (window.Hands && !mediaPipeHands && !isHandsModelLoading) {
+                    try {
+                        isHandsModelLoading = true;
+                        mediaPipeHands = new Hands({
+                            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                        });
+                        mediaPipeHands.setOptions({
+                            maxNumHands: 2,
+                            modelComplexity: 1,
+                            minDetectionConfidence: 0.5,
+                            minTrackingConfidence: 0.5
+                        });
+                        mediaPipeHands.onResults((results) => {
+                            cachedHandResults = analyzeHandResults(results);
+                        });
+                    } catch (hErr) {
+                        console.warn('MediaPipe Hands load notice:', hErr);
+                    } finally {
+                        isHandsModelLoading = false;
+                    }
+                }
                 
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400';
-                text.innerText = 'IA: Alta Precisión (HD)';
+                text.innerText = 'IA: Alta Precisión (HD + Manos)';
             } catch (e) {
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-rose-400';
@@ -1806,7 +1837,7 @@
                 track.bbox[3] += (track.targetBbox[3] - track.bbox[3]) * TRACK_LERP_FACTOR;
             }
 
-            renderComprehensiveOverlay(cachedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts);
+            renderComprehensiveOverlay(cachedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults);
 
             // Composición para grabación de video (Cámara Web Real + Bounding Boxes & HUD de IA)
             if (isRecording) {
@@ -1906,21 +1937,33 @@
                     bbox: t.bbox
                 }));
 
+                // Ejecutar detección precisa de manos y conteo de dedos con MediaPipe
+                if (mediaPipeHands && !isHandsInferring && videoElement && videoElement.readyState >= 2) {
+                    isHandsInferring = true;
+                    try {
+                        await mediaPipeHands.send({ image: videoElement });
+                    } catch (mhErr) {
+                        // Hand tracking notice
+                    } finally {
+                        isHandsInferring = false;
+                    }
+                }
+
                 cachedPredictions = trackedPredictions;
                 cachedPersonsData = analyzePersonsAndHair(activeTracks);
                 cachedObjectContexts = enrichEnvironmentalContext(trackedPredictions, cachedPersonsData);
-                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData, cachedObjectContexts);
+                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults);
 
                 const infDuration = Math.round(performance.now() - startTime);
                 document.getElementById('inferenceCounter').innerText = `${infDuration} ms`;
 
-                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts);
+                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults);
 
                 // Instant UI feedback (every 80ms)
                 const now = performance.now();
                 if (now - lastDomUpdateTime > 80) {
                     lastDomUpdateTime = now;
-                    updateKPIsAndRadar(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts);
+                    updateKPIsAndRadar(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults);
                 }
 
             } catch (err) {
@@ -2049,6 +2092,113 @@
         }
 
         // ==========================================
+        // HAND & FINGER COUNTING ANALYSIS ENGINE (MEDIAPIPE 21 LANDMARKS)
+        // ==========================================
+        function analyzeHandResults(results) {
+            if (!results || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                return [];
+            }
+
+            const handsData = [];
+            const W = canvasElement.width || 1280;
+            const H = canvasElement.height || 720;
+
+            for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+                const landmarks = results.multiHandLandmarks[i];
+                const handednessInfo = (results.multiHandedness && results.multiHandedness[i]) ? results.multiHandedness[i] : null;
+                const rawLabel = handednessInfo ? handednessInfo.label : (i === 0 ? 'Right' : 'Left');
+
+                // En cámara web frontal reflejada: 'Left' corresponde a la mano derecha del usuario
+                const sideName = rawLabel === 'Left' ? 'Mano Derecha' : 'Mano Izquierda';
+
+                // Distancias euclidianas invariantes a rotación
+                // 1. Pulgar (Thumb): distancia Tip (4) a Pinky MCP (17) comparada con IP (3) a Pinky MCP (17)
+                const dTipPinky = Math.hypot(landmarks[4].x - landmarks[17].x, landmarks[4].y - landmarks[17].y);
+                const dIpPinky = Math.hypot(landmarks[3].x - landmarks[17].x, landmarks[3].y - landmarks[17].y);
+                const isThumbOpen = dTipPinky > dIpPinky * 1.12;
+
+                // 2. Índice (Index): distancia Tip (8) a Muñeca (0) vs PIP (6) a Muñeca (0)
+                const dIndexTipWrist = Math.hypot(landmarks[8].x - landmarks[0].x, landmarks[8].y - landmarks[0].y);
+                const dIndexPipWrist = Math.hypot(landmarks[6].x - landmarks[0].x, landmarks[6].y - landmarks[0].y);
+                const isIndexOpen = dIndexTipWrist > dIndexPipWrist * 1.10;
+
+                // 3. Medio (Middle): Tip (12) a Muñeca (0) vs PIP (10) a Muñeca (0)
+                const dMiddleTipWrist = Math.hypot(landmarks[12].x - landmarks[0].x, landmarks[12].y - landmarks[0].y);
+                const dMiddlePipWrist = Math.hypot(landmarks[10].x - landmarks[0].x, landmarks[10].y - landmarks[0].y);
+                const isMiddleOpen = dMiddleTipWrist > dMiddlePipWrist * 1.10;
+
+                // 4. Anular (Ring): Tip (16) a Muñeca (0) vs PIP (14) a Muñeca (0)
+                const dRingTipWrist = Math.hypot(landmarks[16].x - landmarks[0].x, landmarks[16].y - landmarks[0].y);
+                const dRingPipWrist = Math.hypot(landmarks[14].x - landmarks[0].x, landmarks[14].y - landmarks[0].y);
+                const isRingOpen = dRingTipWrist > dRingPipWrist * 1.10;
+
+                // 5. Meñique (Pinky): Tip (20) a Muñeca (0) vs PIP (18) a Muñeca (0)
+                const dPinkyTipWrist = Math.hypot(landmarks[20].x - landmarks[0].x, landmarks[20].y - landmarks[0].y);
+                const dPinkyPipWrist = Math.hypot(landmarks[18].x - landmarks[0].x, landmarks[18].y - landmarks[0].y);
+                const isPinkyOpen = dPinkyTipWrist > dPinkyPipWrist * 1.10;
+
+                const fingersOpen = [isThumbOpen, isIndexOpen, isMiddleOpen, isRingOpen, isPinkyOpen];
+                const count = fingersOpen.filter(Boolean).length;
+
+                // Identificación precisa del gesto manual según dedos extendidos
+                let gestureName = `${count} dedos`;
+                if (count === 0) {
+                    gestureName = 'Puño Cerrado (0 dedos)';
+                } else if (count === 1) {
+                    if (isThumbOpen) gestureName = 'Pulgar Arriba / Like (1 dedo)';
+                    else if (isIndexOpen) gestureName = 'Señalando con Índice (1 dedo)';
+                    else gestureName = '1 Dedo Extendido';
+                } else if (count === 2) {
+                    if (isIndexOpen && isMiddleOpen) gestureName = 'Señal de Paz / Victoria (2 dedos)';
+                    else if (isThumbOpen && isIndexOpen) gestureName = 'Gesto L / Pistola (2 dedos)';
+                    else if (isThumbOpen && isPinkyOpen) gestureName = 'Gesto Shaka / Saludo (2 dedos)';
+                    else gestureName = '2 Dedos Extendidos';
+                } else if (count === 3) {
+                    gestureName = 'Tres Dedos Mostrados (3 dedos)';
+                } else if (count === 4) {
+                    gestureName = 'Cuatro Dedos Mostrados (4 dedos)';
+                } else if (count === 5) {
+                    gestureName = 'Palma Abierta / Saludo (5 dedos)';
+                }
+
+                // Cálculo del recuadro contenedor (bounding box) de la mano en píxeles
+                let minX = 1, maxX = 0, minY = 1, maxY = 0;
+                landmarks.forEach(pt => {
+                    if (pt.x < minX) minX = pt.x;
+                    if (pt.x > maxX) maxX = pt.x;
+                    if (pt.y < minY) minY = pt.y;
+                    if (pt.y > maxY) maxY = pt.y;
+                });
+
+                const handBbox = [
+                    Math.max(0, minX * W - 15),
+                    Math.max(0, minY * H - 15),
+                    Math.min(W, (maxX - minX) * W + 30),
+                    Math.min(H, (maxY - minY) * H + 30)
+                ];
+
+                handsData.push({
+                    index: i,
+                    side: sideName,
+                    handedness: rawLabel,
+                    count: count,
+                    gesture: gestureName,
+                    landmarks: landmarks,
+                    bbox: handBbox,
+                    fingers: {
+                        thumb: isThumbOpen,
+                        index: isIndexOpen,
+                        middle: isMiddleOpen,
+                        ring: isRingOpen,
+                        pinky: isPinkyOpen
+                    }
+                });
+            }
+
+            return handsData;
+        }
+
+        // ==========================================
         // ENVIRONMENTAL & SPATIAL CONTEXT ENGINE
         // Analyzes topology of EVERY object in the scene relative to people and furniture
         // ==========================================
@@ -2056,6 +2206,9 @@
             const contextMap = {};
             const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
             const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch' || p.class === 'bed');
+            const fruitClasses = ['apple', 'banana', 'orange', 'broccoli', 'carrot'];
+            const mealClasses = ['sandwich', 'pizza', 'hot dog', 'donut', 'cake', 'bowl'];
+            const utensilClasses = ['fork', 'knife', 'spoon'];
 
             predictions.forEach(pred => {
                 if (pred.class === 'person') return;
@@ -2072,17 +2225,23 @@
 
                     if (inPersonPerimeter) {
                         if (pred.class === 'cell phone') {
-                            ctxTag = (ocy <= py + ph * 0.42) ? 'En mano • En llamada' : 'En mano • Manipulando';
+                            ctxTag = (ocy <= py + ph * 0.40) ? 'En oreja • Llamada activa' : 'En mano • Manipulando celular';
+                        } else if (fruitClasses.includes(pred.class)) {
+                            ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando fruta/verdura';
+                        } else if (mealClasses.includes(pred.class)) {
+                            ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando alimento';
+                        } else if (utensilClasses.includes(pred.class)) {
+                            ctxTag = 'En mano • Usando cubierto';
                         } else if (pred.class === 'bottle' || pred.class === 'cup' || pred.class === 'wine glass') {
-                            ctxTag = (ocy <= py + ph * 0.52) ? 'En mano • Bebiendo' : 'En mano';
+                            ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo • Bebiendo' : 'En mano';
                         } else if (pred.class === 'laptop' || pred.class === 'keyboard' || pred.class === 'mouse') {
                             ctxTag = 'En uso activo';
                         } else if (pred.class === 'book') {
                             ctxTag = 'En mano • Lectura';
                         } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase') {
-                            ctxTag = 'Portado por persona';
+                            ctxTag = 'Interacción • Sacando/guardando';
                         } else {
-                            ctxTag = 'En interacción';
+                            ctxTag = 'En mano • Sostenido';
                         }
                         break;
                     }
@@ -2124,12 +2283,33 @@
 
         // ==========================================
         // GESTURE & BEHAVIOR ANALYSIS HEURISTICS
-        // Detecta gestos precisos, qué hace la persona y el estado de la escena completa
+        // Detecta gestos precisos, qué hace la persona, conteo de dedos y el estado de la escena completa
         // ==========================================
-        function analyzeGesturesAndBehavior(predictions, personsData, objectContexts) {
+        function analyzeGesturesAndBehavior(predictions, personsData, objectContexts, handResults) {
             const personCount = personsData.length;
 
             if (personCount === 0) {
+                // Si no hay cuerpo completo pero sí hay manos en escena (ej. cámara cerca de manos)
+                if (handResults && handResults.length > 0) {
+                    if (handResults.length >= 2) {
+                        const totalFingers = handResults[0].count + handResults[1].count;
+                        return {
+                            key: 'both_hands',
+                            name: `Ambas Manos: ${totalFingers} Dedos Visibles (${handResults[0].count} + ${handResults[1].count})`,
+                            color: BEHAVIOR_COLOR_MAP['both_hands'] ? BEHAVIOR_COLOR_MAP['both_hands'].color : '#06B6D4',
+                            confidence: 0.96
+                        };
+                    } else {
+                        const h = handResults[0];
+                        return {
+                            key: 'hand_fingers',
+                            name: `${h.side}: ${h.gesture}`,
+                            color: BEHAVIOR_COLOR_MAP['hand_fingers'] ? BEHAVIOR_COLOR_MAP['hand_fingers'].color : '#10B981',
+                            confidence: 0.95
+                        };
+                    }
+                }
+
                 return {
                     key: 'absent',
                     name: BEHAVIOR_COLOR_MAP['absent'] ? BEHAVIOR_COLOR_MAP['absent'].name : 'Persona Ausente / Sin Detección',
@@ -2145,6 +2325,10 @@
             const books = predictions.filter(p => p.class === 'book');
             const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch');
             const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
+            const bags = predictions.filter(p => p.class === 'backpack' || p.class === 'handbag' || p.class === 'suitcase');
+            const utensils = predictions.filter(p => p.class === 'fork' || p.class === 'knife' || p.class === 'spoon');
+            const fruitClasses = ['apple', 'banana', 'orange', 'broccoli', 'carrot'];
+            const mealClasses = ['sandwich', 'pizza', 'hot dog', 'donut', 'cake', 'bowl'];
 
             // 1. Detección de Grupo / Múltiples Personas
             if (personCount >= 2) {
@@ -2172,21 +2356,41 @@
             const mainPerson = personsData[0];
             const [px, py, pw, ph] = mainPerson.bbox;
 
-            // 2. Gesto y Acción: Celular (Llamada vs Manipulación)
+            // 2. Comiendo Frutas, Verduras o Alimentos (MÁXIMA PRIORIDAD)
+            const foods = predictions.filter(p => [...fruitClasses, ...mealClasses].includes(p.class));
+            for (const food of foods) {
+                const [fx, fy, fw, fh] = food.bbox;
+                const foodCenterX = fx + fw / 2;
+                const foodCenterY = fy + fh / 2;
+
+                if (foodCenterX >= px - pw * 0.25 && foodCenterX <= px + pw * 1.25 &&
+                    foodCenterY >= py + ph * 0.15 && foodCenterY <= py + ph * 0.55) {
+                    const foodName = getObjectDisplayName(food.class);
+                    return {
+                        key: 'eating_food',
+                        name: `Comiendo: ${foodName}`,
+                        color: BEHAVIOR_COLOR_MAP['eating_food'] ? BEHAVIOR_COLOR_MAP['eating_food'].color : '#F97316',
+                        confidence: 0.96
+                    };
+                }
+            }
+
+            // 3. Celular: Llamada Telefónica Activa en Oreja vs Manipulación
             for (const phone of phones) {
                 const [bx, by, bw, bh] = phone.bbox;
                 const phoneCenterX = bx + bw / 2;
                 const phoneCenterY = by + bh / 2;
 
-                if (phoneCenterX >= px - pw * 0.3 && phoneCenterX <= px + pw * 1.3) {
-                    if (phoneCenterY >= py && phoneCenterY <= py + ph * 0.42) {
+                if (phoneCenterX >= px - pw * 0.35 && phoneCenterX <= px + pw * 1.35) {
+                    // Cerca de la oreja o lateral superior del rostro
+                    if (phoneCenterY >= py && phoneCenterY <= py + ph * 0.40) {
                         return {
-                            key: 'talking_phone',
-                            name: BEHAVIOR_COLOR_MAP['talking_phone'] ? BEHAVIOR_COLOR_MAP['talking_phone'].name : 'Hablando por Teléfono / Celular',
-                            color: BEHAVIOR_COLOR_MAP['talking_phone'] ? BEHAVIOR_COLOR_MAP['talking_phone'].color : '#FF5722',
-                            confidence: 0.96
+                            key: 'phone_call',
+                            name: 'Llamada Telefónica Activa (En Oreja)',
+                            color: BEHAVIOR_COLOR_MAP['phone_call'] ? BEHAVIOR_COLOR_MAP['phone_call'].color : '#FF3D00',
+                            confidence: 0.97
                         };
-                    } else if (phoneCenterY > py + ph * 0.42 && phoneCenterY <= py + ph * 0.9) {
+                    } else if (phoneCenterY > py + ph * 0.40 && phoneCenterY <= py + ph * 0.90) {
                         return {
                             key: 'holding_phone',
                             name: BEHAVIOR_COLOR_MAP['holding_phone'] ? BEHAVIOR_COLOR_MAP['holding_phone'].name : 'Usando / Manipulando Celular',
@@ -2197,7 +2401,82 @@
                 }
             }
 
-            // 3. Gesto y Acción: Bebiendo / Consumiendo Líquido
+            // 4. Conteo Preciso de Dedos y Gestos de Manos con MediaPipe (MÁXIMA PRIORIDAD)
+            if (handResults && handResults.length > 0) {
+                if (handResults.length >= 2) {
+                    const totalFingers = handResults[0].count + handResults[1].count;
+                    const bothDesc = (totalFingers === 10)
+                        ? 'Ambas Manos: 10 Dedos Visibles (Palmas Abiertas)'
+                        : `Ambas Manos: ${totalFingers} Dedos Visibles (${handResults[0].side}: ${handResults[0].count} • ${handResults[1].side}: ${handResults[1].count})`;
+                    return {
+                        key: 'both_hands',
+                        name: bothDesc,
+                        color: BEHAVIOR_COLOR_MAP['both_hands'] ? BEHAVIOR_COLOR_MAP['both_hands'].color : '#06B6D4',
+                        confidence: 0.96
+                    };
+                } else if (handResults.length === 1) {
+                    const h = handResults[0];
+                    return {
+                        key: 'hand_fingers',
+                        name: `${h.side}: ${h.gesture}`,
+                        color: BEHAVIOR_COLOR_MAP['hand_fingers'] ? BEHAVIOR_COLOR_MAP['hand_fingers'].color : '#10B981',
+                        confidence: 0.96
+                    };
+                }
+            }
+
+            // 5. Mostrando Fruta o Verdura a la Cámara
+            const fruitsVeg = predictions.filter(p => fruitClasses.includes(p.class));
+            for (const fv of fruitsVeg) {
+                const [fvx, fvy, fvw, fvh] = fv.bbox;
+                if (fvx + fvw / 2 >= px - pw * 0.35 && fvx + fvw / 2 <= px + pw * 1.35 && fvy >= py + ph * 0.30) {
+                    return {
+                        key: 'showing_fruit_veg',
+                        name: `Mostrando Fruta / Verdura: ${getObjectDisplayName(fv.class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_fruit_veg'] ? BEHAVIOR_COLOR_MAP['showing_fruit_veg'].color : '#84CC16',
+                        confidence: 0.94
+                    };
+                }
+            }
+
+            // 6. Mostrando Comida / Alimento Preparado
+            const meals = predictions.filter(p => mealClasses.includes(p.class));
+            for (const meal of meals) {
+                const [mx, my, mw, mh] = meal.bbox;
+                if (mx + mw / 2 >= px - pw * 0.35 && mx + mw / 2 <= px + pw * 1.35 && my >= py + ph * 0.30) {
+                    return {
+                        key: 'showing_food',
+                        name: `Mostrando Alimento: ${getObjectDisplayName(meal.class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_food'] ? BEHAVIOR_COLOR_MAP['showing_food'].color : '#EAB308',
+                        confidence: 0.94
+                    };
+                }
+            }
+
+            // 7. Sacando o Guardando en Mochila / Bolso / Maleta
+            for (const bag of bags) {
+                const [bx, by, bw, bh] = bag.bbox;
+                if (bx + bw / 2 >= px - pw * 0.35 && bx + bw / 2 <= px + pw * 1.35 && by >= py + ph * 0.20) {
+                    return {
+                        key: 'retrieving_item',
+                        name: `Sacando / Guardando en ${getObjectDisplayName(bag.class)}`,
+                        color: BEHAVIOR_COLOR_MAP['retrieving_item'] ? BEHAVIOR_COLOR_MAP['retrieving_item'].color : '#A855F7',
+                        confidence: 0.93
+                    };
+                }
+            }
+
+            // 8. Manipulando Utensilio / Cubierto (Tenedor, Cuchillo, Cuchara)
+            if (utensils.length > 0) {
+                return {
+                    key: 'using_utensil',
+                    name: `Manipulando Cubierto [${getObjectDisplayName(utensils[0].class)}]`,
+                    color: BEHAVIOR_COLOR_MAP['using_utensil'] ? BEHAVIOR_COLOR_MAP['using_utensil'].color : '#EC4899',
+                    confidence: 0.92
+                };
+            }
+
+            // 9. Bebiendo / Consumiendo Líquido (Botella, Taza, Copa)
             for (const drink of drinks) {
                 const [dx, dy, dw, dh] = drink.bbox;
                 const drinkCenterX = dx + dw / 2;
@@ -2207,14 +2486,30 @@
                     drinkCenterY >= py && drinkCenterY <= py + ph * 0.55) {
                     return {
                         key: 'drinking',
-                        name: BEHAVIOR_COLOR_MAP['drinking'] ? BEHAVIOR_COLOR_MAP['drinking'].name : 'Bebiendo / Consumiendo Líquido',
+                        name: `Bebiendo / Consumiendo [${getObjectDisplayName(drink.class)}]`,
                         color: BEHAVIOR_COLOR_MAP['drinking'] ? BEHAVIOR_COLOR_MAP['drinking'].color : '#7C3AED',
                         confidence: 0.94
                     };
                 }
             }
 
-            // 4. Acción: Escribiendo en Teclado / Trabajando en Computadora
+            // 10. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
+            const heldObjects = predictions.filter(p => !['person', 'chair', 'couch', 'bed', 'dining table'].includes(p.class));
+            for (const obj of heldObjects) {
+                const [ox, oy, ow, oh] = obj.bbox;
+                const ocx = ox + ow / 2;
+                const ocy = oy + oh / 2;
+                if (ocx >= px && ocx <= px + pw && ocy >= py + ph * 0.35 && ocy <= py + ph * 0.85) {
+                    return {
+                        key: 'showing_object',
+                        name: `Mostrando a la Cámara: ${getObjectDisplayName(obj.class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_object'] ? BEHAVIOR_COLOR_MAP['showing_object'].color : '#38BDF8',
+                        confidence: 0.93
+                    };
+                }
+            }
+
+            // 11. Escribiendo en Teclado / Trabajando en Computadora
             for (const laptop of laptops) {
                 const [lx, ly, lw, lh] = laptop.bbox;
                 const laptopCenterX = lx + lw / 2;
@@ -2253,7 +2548,7 @@
                 }
             }
 
-            // 5. Acción: Leyendo Documento / Libro
+            // 12. Leyendo Documento / Libro
             for (const book of books) {
                 const [bkx, bky, bkw, bkh] = book.bbox;
                 if (bkx + bkw / 2 >= px - pw * 0.2 && bkx + bkw / 2 <= px + pw * 1.2 && bky >= py + ph * 0.2) {
@@ -2266,7 +2561,7 @@
                 }
             }
 
-            // 6. Dinámica de Movimiento y Gestos de Manos
+            // 13. Dinámica de Movimiento Rápido
             const nowTime = performance.now();
             let isRestless = false;
             let isWaving = false;
@@ -2316,7 +2611,7 @@
                 };
             }
 
-            // 7. Postura Corporal: Sentado vs De Pie
+            // 14. Postura Corporal: Sentado vs De Pie
             const aspectRatio = ph / (pw || 1);
             const isNearSeat = chairs.some(c => {
                 const cx = c.bbox[0] + c.bbox[2] / 2;
@@ -2345,7 +2640,7 @@
                 };
             }
 
-            // 8. Persona Atenta y Enfocada en Cámara
+            // 15. Persona Atenta y Enfocada en Cámara
             return {
                 key: 'attentive',
                 name: BEHAVIOR_COLOR_MAP['attentive'] ? BEHAVIOR_COLOR_MAP['attentive'].name : 'Persona Atenta / Presente',
@@ -2373,11 +2668,12 @@
         }
 
         // ==========================================
-        // CANVAS RENDERING WITH EXACT COORDINATES & RICH CONTEXT
+        // CANVAS RENDERING WITH EXACT COORDINATES & RICH CONTEXT & HAND SKELETONS
         // ==========================================
-        function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts) {
+        function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts, handResults) {
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+            // 1. Dibuja las cajas delimitadoras de objetos
             predictions.forEach(pred => {
                 const isPerson = pred.class === 'person';
                 const [x, y, width, height] = pred.bbox;
@@ -2447,7 +2743,7 @@
                 ctx.restore();
             });
 
-            // Badges individuales de tono de cabello en personas
+            // 2. Badges individuales de tono de cabello en personas
             personsData.forEach(p => {
                 const [px, py, pw, ph] = p.bbox;
                 if (p.hair) {
@@ -2484,12 +2780,83 @@
                 }
             });
 
-            // Banner inferior en tiempo real mostrando Gesto o Actividad
+            // 3. DIBUJO DE ESQUELETO DE MANOS Y CONTEO DE DEDOS (MEDIAPIPE 21 LANDMARKS)
+            if (handResults && handResults.length > 0) {
+                const HAND_CONNECTIONS = [
+                    [0, 1], [1, 2], [2, 3], [3, 4],          // Pulgar
+                    [0, 5], [5, 6], [6, 7], [7, 8],          // Índice
+                    [5, 9], [9, 10], [10, 11], [11, 12],     // Medio
+                    [9, 13], [13, 14], [14, 15], [15, 16],   // Anular
+                    [13, 17], [17, 18], [18, 19], [19, 20],  // Meñique
+                    [0, 17]                                  // Base de palma
+                ];
+
+                handResults.forEach(hand => {
+                    const lm = hand.landmarks;
+                    const W = canvasElement.width;
+                    const H = canvasElement.height;
+
+                    // Huesos de la mano
+                    ctx.save();
+                    ctx.strokeStyle = '#10B981';
+                    ctx.lineWidth = 2.5;
+                    ctx.shadowColor = '#10B981';
+                    ctx.shadowBlur = 6;
+                    HAND_CONNECTIONS.forEach(([i, j]) => {
+                        ctx.beginPath();
+                        ctx.moveTo(lm[i].x * W, lm[i].y * H);
+                        ctx.lineTo(lm[j].x * W, lm[j].y * H);
+                        ctx.stroke();
+                    });
+                    ctx.restore();
+
+                    // Articulaciones luminosas (Joints)
+                    ctx.save();
+                    lm.forEach((pt, idx) => {
+                        const jx = pt.x * W;
+                        const jy = pt.y * H;
+                        ctx.beginPath();
+                        ctx.arc(jx, jy, [4, 8, 12, 16, 20].includes(idx) ? 4.5 : 3, 0, Math.PI * 2);
+                        ctx.fillStyle = [4, 8, 12, 16, 20].includes(idx) ? '#38BDF8' : '#34D399';
+                        ctx.fill();
+                    });
+                    ctx.restore();
+
+                    // Etiqueta flotante del conteo de dedos y gesto
+                    const [hx, hy, hw, hh] = hand.bbox;
+                    const handLabel = `${hand.side}: ${hand.gesture}`;
+                    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                    const hTextW = ctx.measureText(handLabel).width + 18;
+                    const hTagH = 22;
+
+                    const clampedHX = Math.max(4, Math.min(hx, canvasElement.width - hTextW - 4));
+                    let clampedHY = hy - hTagH - 4;
+                    if (clampedHY < 4) clampedHY = hy + hh + 4;
+                    clampedHY = Math.max(4, Math.min(clampedHY, canvasElement.height - hTagH - 4));
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(6, 78, 59, 0.94)';
+                    ctx.strokeStyle = '#34D399';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.roundRect(clampedHX, clampedHY, hTextW, hTagH, 6);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ECFDF5';
+                    ctx.fillText(handLabel, clampedHX + 9, clampedHY + 15);
+                    ctx.restore();
+                });
+            }
+
+            // 4. Banner inferior en tiempo real mostrando Gesto o Actividad
             if (behavior && behavior.key !== 'absent') {
                 const bannerHeight = 36;
                 const bannerY = canvasElement.height - bannerHeight - 12;
-                const isGesture = (behavior.key.includes('hands_up') || behavior.key.includes('waving') || behavior.key.includes('thumbs_up') || behavior.key.includes('thinking') || behavior.key.includes('face_touch'));
-                const prefix = isGesture ? 'GESTO EN VIVO' : 'ACTIVIDAD EN VIVO';
+                const isGesture = (behavior.key.includes('hands_up') || behavior.key.includes('waving') || behavior.key.includes('thumbs_up') || behavior.key.includes('thinking') || behavior.key.includes('face_touch') || behavior.key === 'hand_fingers' || behavior.key === 'both_hands');
+                const isCall = (behavior.key === 'phone_call' || behavior.key === 'talking_phone');
+                const isEating = (behavior.key === 'eating_food');
+                const prefix = isCall ? 'LLAMADA EN VIVO' : (isEating ? 'CONSUMO EN VIVO' : (isGesture ? 'GESTO DETECTADO' : 'ACTIVIDAD EN VIVO'));
                 const bannerText = `${prefix}: ${behavior.name.toUpperCase()}`;
 
                 ctx.font = 'bold 13px "JetBrains Mono", monospace';
@@ -2526,7 +2893,9 @@
         // ==========================================
         // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
         // ==========================================
-        function processAllDetectionsAndWebSocket(predictions, personsData, behavior, objectContexts) {
+        // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
+        // ==========================================
+        function processAllDetectionsAndWebSocket(predictions, personsData, behavior, objectContexts, handResults) {
             const now = performance.now();
 
             // 1. Seguimiento de personas y objetos en tiempo real por WebSocket
@@ -2599,7 +2968,7 @@
                     currentActiveBehavior = behavior.key;
                     lastEventSentTimestamps[behaviorKey] = now;
 
-                    const isGesture = (behavior.key.includes('gesture') || behavior.key === 'hands_up' || behavior.key === 'waving' || behavior.key === 'thumbs_up' || behavior.key === 'thinking' || behavior.key === 'face_touch');
+                    const isGesture = (behavior.key.includes('gesture') || behavior.key === 'hands_up' || behavior.key === 'waving' || behavior.key === 'thumbs_up' || behavior.key === 'thinking' || behavior.key === 'face_touch' || behavior.key === 'hand_fingers' || behavior.key === 'both_hands');
 
                     sendDetectionToServer({
                         category: isGesture ? 'gesture' : 'behavior',
@@ -2607,7 +2976,10 @@
                         display_name: behavior.name,
                         confidence: behavior.confidence,
                         color: behavior.color,
-                        details: { persons: personsData.length }
+                        details: {
+                            persons: personsData.length,
+                            hands: handResults ? handResults.length : 0
+                        }
                     });
                 }
             }
@@ -2639,7 +3011,7 @@
         // ==========================================
         // RADAR & KPIS UPDATE (THROTTLED)
         // ==========================================
-        function updateKPIsAndRadar(predictions, personsData, behavior, objectContexts) {
+        function updateKPIsAndRadar(predictions, personsData, behavior, objectContexts, handResults) {
             const countBadge = document.getElementById('activeCountBadge');
             const kpiPersons = document.getElementById('kpiPersonsCount');
             const kpiHair = document.getElementById('kpiHairTone');
@@ -2691,16 +3063,30 @@
 
             // Radar Gestos
             const radarGestures = document.getElementById('radarGesturesContainer');
+            let gesturesHtml = '';
             if (behavior && behavior.key !== 'absent') {
-                radarGestures.innerHTML = `
+                gesturesHtml += `
                     <div class="p-1.5 rounded-lg bg-slate-900 border text-xs flex items-center gap-2" style="border-color: ${behavior.color}55;">
                         <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${behavior.color};"></span>
                         <span class="font-bold text-white">${behavior.name}</span>
                     </div>
                 `;
-            } else {
-                radarGestures.innerHTML = '<span class="text-slate-500 italic">Sin gestos detectados</span>';
             }
+            if (handResults && handResults.length > 0) {
+                handResults.forEach(h => {
+                    gesturesHtml += `
+                        <div class="p-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs flex items-center justify-between">
+                            <div class="flex items-center gap-1.5 truncate">
+                                <span class="w-2 rounded-full h-2 bg-emerald-400 shrink-0"></span>
+                                <span class="text-emerald-200 font-semibold truncate">${h.side}</span>
+                                <span class="text-[11px] text-white truncate">${h.gesture}</span>
+                            </div>
+                            <span class="text-[10px] font-mono-code text-emerald-400 shrink-0 ml-1 px-1.5 py-0.5 rounded bg-emerald-900/60 border border-emerald-700/50">${h.count} dedos</span>
+                        </div>
+                    `;
+                });
+            }
+            radarGestures.innerHTML = gesturesHtml || '<span class="text-slate-500 italic">Sin gestos detectados</span>';
 
             // Radar Tecnología
             const techClasses = ['laptop', 'tv', 'cell phone', 'mouse', 'keyboard', 'remote', 'microwave'];
