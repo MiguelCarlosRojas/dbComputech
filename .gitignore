@@ -1,0 +1,53 @@
+# ==============================================================================
+# dbCOMPUTECH - Git Ignore Rules
+# ==============================================================================
+
+# 1. Environment & Secrets
+.env
+.env.backup
+.env.production
+auth.json
+
+# 2. Dependencies
+/vendor
+/node_modules
+
+# 3. Database Local Instances
+/database/*.sqlite*
+
+# 4. Storage & Application Logs
+*.log
+/storage/logs/*.log
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/*.key
+/storage/pail
+!/storage/framework/cache/.gitignore
+!/storage/framework/cache/data/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/testing/.gitignore
+!/storage/framework/views/.gitignore
+!/storage/logs/.gitignore
+
+# 5. Compiled Assets & Public Storage
+/public/build
+/public/hot
+/public/storage
+
+# 6. Testing & PHPUnit
+.phpunit.result.cache
+/.phpunit.cache
+
+# 7. IDEs, Editors & OS Files
+.DS_Store
+Thumbs.db
+/.vscode
+/.idea
+/.fleet
+/.nova
+/.zed
+.phpactor.json
+Homestead.json
+Homestead.yaml

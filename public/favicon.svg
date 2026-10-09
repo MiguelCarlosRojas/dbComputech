@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+    <rect width="64" height="64" rx="16" fill="#030712"/>
+    <rect x="2" y="2" width="60" height="60" rx="14" stroke="#06b6d4" stroke-width="2" stroke-opacity="0.4"/>
+    <!-- Cyber Camera Icon -->
+    <path d="M20 22L24 16H40L44 22H50C52.2091 22 54 23.7909 54 26V46C54 48.2091 52.2091 50 50 50H14C11.7909 50 10 48.2091 10 46V26C10 23.7909 11.7909 22 14 22H20Z" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="32" cy="36" r="8" stroke="#10b981" stroke-width="3"/>
+    <circle cx="32" cy="36" r="3" fill="#06b6d4"/>
+    <circle cx="45" cy="27" r="2" fill="#f59e0b"/>
+</svg>
