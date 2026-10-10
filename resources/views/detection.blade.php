@@ -2131,7 +2131,7 @@
         }
 
         // ==========================================
-        // SISTEMA DE IA AUTO-EVOLUTIVA Y APRENDIZAJE CONTINUO 24/7
+        // SISTEMA DE IA AUTO-EVOLUTIVA CON AUTOCORRECCIÓN ACTIVA 24/7
         // ==========================================
         class EvolutionaryAIEngine {
             constructor() {
@@ -2140,12 +2140,14 @@
                     generation: 1,
                     learnedConcepts: 0,
                     webKnowledgeHits: 0,
+                    correctionsApplied: 0,
                     lastEvolutionTime: Date.now(),
                     confidenceBoostMap: {}
                 };
                 this.knowledgeTaxonomy = {};
                 this.onlineLearningQueue = new Set();
                 this.isFetchingWeb = false;
+                this.trackHistory = new Map();
                 this.loadFromStorage();
                 this.initBaseTaxonomy();
                 this.startAutonomousLearningCycle();
@@ -2248,6 +2250,99 @@
                 }
             }
 
+            autoCorrectDetection(trackId, rawClass, rawScore, bbox, canvasW, canvasH) {
+                const now = performance.now();
+                const [bx, by, bw, bh] = bbox || [0, 0, 0, 0];
+                let correctedClass = (rawClass || '').toLowerCase().trim();
+                let correctedScore = rawScore;
+                let wasCorrected = false;
+
+                // 1. Estabilización y consistencia temporal (Debounce / Smoothing multi-frame)
+                if (trackId) {
+                    if (!this.trackHistory.has(trackId)) {
+                        this.trackHistory.set(trackId, []);
+                    }
+                    const hist = this.trackHistory.get(trackId);
+                    hist.push({ class: correctedClass, score: rawScore, time: now });
+                    if (hist.length > 10) hist.shift();
+
+                    if (hist.length >= 4) {
+                        const counts = {};
+                        let maxClass = correctedClass;
+                        let maxCount = 0;
+                        for (const item of hist) {
+                            counts[item.class] = (counts[item.class] || 0) + 1;
+                            if (counts[item.class] > maxCount) {
+                                maxCount = counts[item.class];
+                                maxClass = item.class;
+                            }
+                        }
+
+                        // Si una clase histórica dominó el >= 70% de los frames y el frame actual fluctúa por ruido
+                        if (maxClass !== correctedClass && (maxCount / hist.length) >= 0.70) {
+                            correctedClass = maxClass;
+                            correctedScore = Math.min(1.0, rawScore * 1.15);
+                            wasCorrected = true;
+                        }
+                    }
+                }
+
+                // 2. Autocorrección dimensional por proporciones físicas y geométricas
+                const cW = canvasW || 1280;
+                const cH = canvasH || 720;
+                const areaRatio = (bw * bh) / (cW * cH);
+
+                // Celular detectado pero ocupa una proporción masiva de pantalla -> Autocorregir a Laptop o Monitor
+                if (correctedClass === 'cell phone' && (areaRatio > 0.35 || bw > cW * 0.45)) {
+                    correctedClass = 'laptop';
+                    wasCorrected = true;
+                }
+                // Televisor muy pequeño (< 110px) en encuadre personal -> Autocorregir a Teléfono Celular
+                else if (correctedClass === 'tv' && bw < 110 && bh < 140) {
+                    correctedClass = 'cell phone';
+                    wasCorrected = true;
+                }
+                // Taza muy angosta y alta confundida con botella
+                else if (correctedClass === 'cup' && (bh / (bw || 1)) > 2.5) {
+                    correctedClass = 'bottle';
+                    wasCorrected = true;
+                }
+                // Botella cuadrada/ancha confundida con taza
+                else if (correctedClass === 'bottle' && (bw / (bh || 1)) > 1.25) {
+                    correctedClass = 'cup';
+                    wasCorrected = true;
+                }
+
+                // 3. Supresión de falsos positivos efímeros marginales
+                if (trackId && this.trackHistory.has(trackId)) {
+                    const hist = this.trackHistory.get(trackId);
+                    if (hist.length <= 2 && rawScore < 0.28) {
+                        correctedScore = Math.max(0.1, rawScore * 0.65);
+                    }
+                }
+
+                if (wasCorrected) {
+                    this.stats.correctionsApplied = (this.stats.correctionsApplied || 0) + 1;
+                }
+
+                return {
+                    correctedClass,
+                    correctedScore,
+                    wasCorrected
+                };
+            }
+
+            pruneTrackHistory(activeTrackIds) {
+                if (this.trackHistory.size > 80) {
+                    const activeSet = new Set(activeTrackIds);
+                    for (const id of this.trackHistory.keys()) {
+                        if (!activeSet.has(id)) {
+                            this.trackHistory.delete(id);
+                        }
+                    }
+                }
+            }
+
             reinforceDetection(label, rawScore, bbox) {
                 const normalized = (label || '').toLowerCase().trim();
                 if (!this.knowledgeTaxonomy[normalized]) {
@@ -2308,6 +2403,7 @@
                     cardBadge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm';
                     if (cardBadge.firstElementChild) cardBadge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0';
                     card.innerText = `Evolución: Gen ${this.stats.generation} (${this.stats.learnedConcepts} Conceptos)`;
+                    cardBadge.title = `IA Auto-Evolutiva con Autocorrección Activa (${this.stats.correctionsApplied || 0} rectificaciones)`;
                 }
 
                 const badgeText = document.getElementById('aiEvolutionBadgeText');
@@ -2863,17 +2959,29 @@
                 // Actualizar el motor de seguimiento multi-objetivo continuo 24/7
                 updateObjectTracks(validPredictions);
 
-                // Proyectar tracks activos para inferencia contextual y eventos WebSocket con IA Auto-Evolutiva
+                if (typeof evolutionaryEngine !== 'undefined') {
+                    evolutionaryEngine.pruneTrackHistory(activeTracks.map(t => t.id));
+                }
+
+                // Proyectar tracks activos para inferencia contextual y eventos WebSocket con IA Auto-Evolutiva y Autocorrección
                 const trackedPredictions = activeTracks
                     .filter(t => (t.class === 'person' ? (t.missedCycles || 0) <= 8 : (t.missedCycles || 0) <= 2))
                     .map(t => {
-                        const evo = (typeof evolutionaryEngine !== 'undefined')
-                            ? evolutionaryEngine.reinforceDetection(t.class, t.score, t.bbox)
-                            : { confidence: t.score, name: t.class };
+                        let finalClass = t.class;
+                        let finalScore = t.score;
+
+                        if (typeof evolutionaryEngine !== 'undefined') {
+                            const correction = evolutionaryEngine.autoCorrectDetection(t.id, t.class, t.score, t.bbox, cW, cH);
+                            finalClass = correction.correctedClass;
+                            finalScore = correction.correctedScore;
+                            const evo = evolutionaryEngine.reinforceDetection(finalClass, finalScore, t.bbox);
+                            finalScore = evo.confidence;
+                        }
+
                         return {
                             id: t.id,
-                            class: t.class,
-                            score: evo.confidence,
+                            class: finalClass,
+                            score: finalScore,
                             bbox: [t.bbox[0], t.bbox[1], t.bbox[2], t.bbox[3]]
                         };
                     });

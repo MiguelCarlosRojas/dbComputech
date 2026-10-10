@@ -113,6 +113,14 @@ graph TD
 * Todos los indicadores, métricas, botones, toasts y alertas utilizan iconos vectoriales SVG de alta definición (Lucide / Heroicons).
 * Estricta ausencia de caracteres emoji en vistas, controladores y documentación.
 
+### 11. Motor de IA Auto-Evolutiva con Autocorrección Activa 24/7
+* **Autoaprendizaje y Refuerzo Continuo**: Algoritmo adaptativo que incrementa los factores de confianza de cada entidad según su frecuencia y estabilidad temporal.
+* **Autocorrección Activa**:
+  * Estabilización multi-cuadro (*temporal smoothing*) que rectifica predicciones erráticas u oscilantes hacia la clase dominante histórica.
+  * Autocorrección geométrica por proporciones físicas y de encuadre (prevención de confusiones de escala).
+  * Supresión de falsos positivos efímeros marginales.
+* **Enriquecimiento Autónomo en Red**: Consulta y asimilación de conocimiento en segundo plano (Wikipedia REST API) para extender su taxonomía conceptual.
+* **Persistencia Local**: Almacenamiento directo en el cliente para conservar el aprendizaje entre sesiones.
 
 ---
 
