@@ -101,9 +101,15 @@
                     </div>
                 </a>
                 <div>
-                    <h1 class="text-sm sm:text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-1.5 sm:gap-2">
-                        dbCOMPUTECH <span class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono-code font-normal">IA Vision 360° Pro</span>
-                    </h1>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-sm sm:text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-1.5 sm:gap-2">
+                            dbCOMPUTECH <span class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono-code font-normal">IA Vision 360° Pro</span>
+                        </h1>
+                        <span id="aiEvolutionBadge" class="hidden xl:inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono-code font-medium">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            IA Auto-Evolutiva: Gen 1 • 25 Conceptos • 100% Adaptativa
+                        </span>
+                    </div>
                     <p class="text-[11px] sm:text-xs text-slate-400 hidden md:block">Detección de Objetos del Entorno, Multi-Persona, Gestos y Tono de Cabello con WebSockets</p>
                 </div>
             </div>
@@ -153,10 +159,10 @@
                     </button>
                 </div>
 
-                <!-- Las 3 Tarjetas de Estado (IA, WebSocket, Cámara) -->
+                <!-- Las 4 Tarjetas de Estado (IA, WebSocket, Cámara, Auto-Evolución) -->
                 <div>
                     <span class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">Estado de Conexión y Servicios de Inteligencia Artificial:</span>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                         <!-- AI Model Status Badge -->
                         <div id="aiModelBadge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-mono-code shadow-sm">
                             <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
@@ -173,6 +179,12 @@
                         <div id="cameraStatusBadge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-800 bg-slate-800/80 text-slate-400 text-xs font-mono-code shadow-sm">
                             <span class="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0"></span>
                             <span id="cameraStatusText" class="truncate font-semibold">Cámara: Inactiva</span>
+                        </div>
+
+                        <!-- AI Evolution Status Card -->
+                        <div id="aiEvolutionCard" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                            <span id="aiEvolutionText" class="truncate font-semibold">IA Evolutiva: Activa</span>
                         </div>
                     </div>
                 </div>
@@ -313,9 +325,6 @@
                         <!-- Video element (Webcam local) -->
                         <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
 
-                        <!-- ESP32-CAM / IP Camera MJPEG & JPEG Stream Element -->
-                        <img id="ipCamStream" crossorigin="anonymous" class="hidden absolute inset-0 w-full h-full object-cover" alt="ESP32-CAM / IP Stream" />
-
                         <!-- Canvas for AI Bounding boxes and Overlays -->
                         <canvas id="canvasOverlay" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"></canvas>
 
@@ -356,11 +365,6 @@
                                 <span id="btnPlayText">Iniciar Detección</span>
                             </x-button>
 
-                            <!-- SELECTOR DE FUENTE DE CÁMARA (WEBCAM / ESP32-CAM MJPEG / JPEG SNAPSHOT) -->
-                            <x-button variant="secondary" size="sm" id="btnCameraSource" onclick="openCameraSourceModal()" icon='<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>'>
-                                <span class="hidden sm:inline" id="cameraSourceLabel">Cámara: Webcam</span>
-                                <span class="sm:hidden" id="cameraSourceLabelMobile">Webcam</span>
-                            </x-button>
                             <!-- PERMISSION & HARDWARE PROTECTED BUTTON: CAMBIAR CÁMARA (Solo visible si hay 2 o más cámaras) -->
                             <div id="btnSwitchCamWrapper" class="hidden relative inline-block">
                                 <x-button variant="secondary" size="sm" id="btnSwitchCam" onclick="toggleCameraPickerMenu()" icon='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>'>
@@ -696,7 +700,7 @@
                                 </span>
                             </td>
                             <td class="px-4 py-2.5 text-slate-400 font-mono-code">
-                                {{ $log->created_at->format('H:i:s') }}
+                                {{ $log->created_at->timezone(config('app.timezone', 'America/Lima'))->format('H:i:s') }}
                             </td>
                         </tr>
                         @empty
@@ -736,141 +740,7 @@
     <!-- Floating Toast Notification Container (Top Right) -->
     <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
 
-    <!-- Camera Source Selector Modal (Webcam / ESP32-CAM MJPEG / JPEG / IP Camera) -->
-    <div id="cameraSourceModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-slate-200">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
-                    </div>
-                    <div>
-                        <h4 class="text-sm sm:text-base font-bold text-white">Configuración de Cámara & Protocolo</h4>
-                        <p class="text-[11px] text-slate-400">Soporte para Webcam Local, ESP32-CAM (MJPEG / JPEG) y Cámaras IP</p>
-                    </div>
-                </div>
-                <button type="button" onclick="closeCameraSourceModal()" class="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
 
-            <!-- Protocol / Mode Selector -->
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-semibold text-slate-300">Tipo de Cámara:</label>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcWebcam">
-                        <input type="radio" name="camSourceType" value="webcam" checked onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
-                        <div class="min-w-0">
-                            <span class="text-xs font-bold text-white block">Cámara Web Local</span>
-                            <span class="text-[10px] text-slate-400 block truncate">Dispositivo USB o Integrado</span>
-                        </div>
-                    </label>
-
-                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcEsp32Mjpeg">
-                        <input type="radio" name="camSourceType" value="esp32_mjpeg" onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
-                        <div class="min-w-0">
-                            <span class="text-xs font-bold text-cyan-300 block">ESP32-CAM (MJPEG)</span>
-                            <span class="text-[10px] text-slate-400 block truncate">Flujo de video continuo :81/stream</span>
-                        </div>
-                    </label>
-
-                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcEsp32Jpeg">
-                        <input type="radio" name="camSourceType" value="esp32_jpeg" onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
-                        <div class="min-w-0">
-                            <span class="text-xs font-bold text-emerald-300 block">ESP32-CAM (JPEG)</span>
-                            <span class="text-[10px] text-slate-400 block truncate">Capturas fotográficas /capture</span>
-                        </div>
-                    </label>
-
-                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcIpCustom">
-                        <input type="radio" name="camSourceType" value="ip_custom" onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
-                        <div class="min-w-0">
-                            <span class="text-xs font-bold text-purple-300 block">Cámara IP Personalizada</span>
-                            <span class="text-[10px] text-slate-400 block truncate">Cualquier URL HTTP de red</span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- ESP32-CAM / IP Camera Settings (Shown if not webcam) -->
-            <div id="ipCameraSettingsBlock" class="hidden flex flex-col gap-3 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                <div class="flex flex-col gap-1.5">
-                    <label for="ipCamUrlInput" class="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                        <span>URL de la Cámara en Red Local:</span>
-                        <span class="text-[10px] text-cyan-400 font-mono-code" id="ipCamProtocolTag">Protocolo: MJPEG</span>
-                    </label>
-                    <input id="ipCamUrlInput" type="text" value="http://192.168.1.50:81/stream" placeholder="http://192.168.1.50:81/stream" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono-code text-white focus:outline-none focus:border-cyan-400 transition">
-                </div>
-
-                <!-- Presets Rápidos -->
-                <div>
-                    <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Presets Rápidos ESP32-CAM:</span>
-                    <div class="flex flex-wrap gap-1.5">
-                        <button type="button" onclick="applyCamPreset('http://192.168.1.50:81/stream', 'esp32_mjpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-cyan-300 border border-slate-700 transition">
-                            :81/stream (MJPEG estándar)
-                        </button>
-                        <button type="button" onclick="applyCamPreset('http://192.168.1.50/stream', 'esp32_mjpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-cyan-300 border border-slate-700 transition">
-                            :80/stream (MJPEG puerto 80)
-                        </button>
-                        <button type="button" onclick="applyCamPreset('http://192.168.1.50/capture', 'esp32_jpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-emerald-300 border border-slate-700 transition">
-                            /capture (JPEG Snapshot)
-                        </button>
-                        <button type="button" onclick="applyCamPreset('http://192.168.1.50/jpg', 'esp32_jpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-emerald-300 border border-slate-700 transition">
-                            /jpg (JPEG Snapshot)
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Anti-CORS Proxy Checkbox -->
-                <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input id="antiCorsProxyCheck" type="checkbox" checked class="w-4 h-4 rounded accent-cyan-400 cursor-pointer">
-                        <span class="text-xs text-slate-300">Proxy Anti-CORS dbCOMPUTECH</span>
-                    </label>
-                    <span class="text-[10px] text-slate-500 max-w-[200px] text-right">Permite a la IA procesar fotogramas sin bloqueo de seguridad</span>
-                </div>
-            </div>
-
-            <!-- Professional Inference Precision Mode Selector -->
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                    <span>Motor de Inferencia de Objetos Profesional:</span>
-                    <span id="inferResTag" class="text-cyan-400 font-mono-code text-[10px]">640px (Pro HD)</span>
-                </label>
-                <div class="grid grid-cols-3 gap-2">
-                    <button type="button" onclick="setInferenceMode(640, 'Pro HD')" id="btnInferPro" class="p-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 text-xs font-semibold flex flex-col items-center gap-0.5 transition shadow-sm">
-                        <span>Pro HD (640p)</span>
-                        <span class="text-[9px] text-slate-400 font-normal">Máxima Precisión</span>
-                    </button>
-                    <button type="button" onclick="setInferenceMode(512, 'Equilibrado')" id="btnInferBal" class="p-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 text-xs font-semibold flex flex-col items-center gap-0.5 transition">
-                        <span>Equilibrado (512p)</span>
-                        <span class="text-[9px] text-slate-400 font-normal">Velocidad y detalle</span>
-                    </button>
-                    <button type="button" onclick="setInferenceMode(400, 'Rápido')" id="btnInferFast" class="p-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 text-xs font-semibold flex flex-col items-center gap-0.5 transition">
-                        <span>Rápido (400p)</span>
-                        <span class="text-[9px] text-slate-400 font-normal">Menor consumo</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Modal Footer Actions -->
-            <div class="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
-                <button type="button" onclick="restoreWebcamSource()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
-                    Restaurar Webcam
-                </button>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="closeCameraSourceModal()" class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 text-xs font-medium transition">
-                        Cancelar
-                    </button>
-                    <button type="button" onclick="applyCameraSourceSettings()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-cyan-500/20">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Conectar y Aplicar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Snapshot Modal -->
     <div id="snapshotModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -938,13 +808,7 @@
         let isCameraActive = false;
         let currentFacingMode = 'user';
         let videoElement = document.getElementById('webcam');
-        let ipCamStream = document.getElementById('ipCamStream');
-        let currentCameraSource = 'webcam'; // 'webcam', 'esp32_mjpeg', 'esp32_jpeg', 'ip_custom'
-        let ipCamUrl = 'http://192.168.1.50:81/stream';
-        let useAntiCorsProxy = true;
         let inferenceResolution = 640; // Pro HD default 640p
-        let jpegSnapshotLoopActive = false;
-        let jpegLoopTimer = null;
         let canvasElement = document.getElementById('canvasOverlay');
         let ctx = canvasElement.getContext('2d');
         let offscreenCanvas = document.getElementById('offscreenCanvas');
@@ -954,34 +818,20 @@
         let animationFrameId = null;
         let audioEnabled = true;
 
-        // Active Media Helpers (Soporte Transparente Webcam Local y ESP32-CAM)
+        // Active Media Helpers (Ultra-High Performance Direct WebCam)
         function getActiveMediaElement() {
-            if (currentCameraSource === 'webcam') {
-                return videoElement;
-            }
-            return ipCamStream || document.getElementById('ipCamStream');
+            return videoElement;
         }
 
         function getActiveMediaDimensions() {
-            if (currentCameraSource === 'webcam') {
-                return {
-                    w: (videoElement && videoElement.videoWidth) ? videoElement.videoWidth : 640,
-                    h: (videoElement && videoElement.videoHeight) ? videoElement.videoHeight : 480
-                };
-            }
-            const imgEl = ipCamStream || document.getElementById('ipCamStream');
             return {
-                w: (imgEl && imgEl.naturalWidth) ? imgEl.naturalWidth : ((imgEl && imgEl.width) ? imgEl.width : 640),
-                h: (imgEl && imgEl.naturalHeight) ? imgEl.naturalHeight : ((imgEl && imgEl.height) ? imgEl.height : 480)
+                w: (videoElement && videoElement.videoWidth) ? videoElement.videoWidth : 640,
+                h: (videoElement && videoElement.videoHeight) ? videoElement.videoHeight : 480
             };
         }
 
         function isMediaSourceReady() {
-            if (currentCameraSource === 'webcam') {
-                return videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0;
-            }
-            const imgEl = ipCamStream || document.getElementById('ipCamStream');
-            return imgEl && imgEl.complete && (imgEl.naturalWidth > 0 || imgEl.width > 0);
+            return videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0;
         }
 
         // Permissions State
@@ -1332,7 +1182,6 @@
                 closeLeftDrawer();
                 closeRightDrawer();
                 closeSnapshotModal();
-                closeCameraSourceModal();
                 closeSystemStatusPanel();
             }
         });
@@ -1513,7 +1362,7 @@
             item.className = 'p-3 rounded-xl bg-slate-950/85 border border-slate-800 transition transform hover:translate-x-1 shadow-md shrink-0 min-h-[72px] flex flex-col justify-between gap-1.5';
             item.style.borderLeft = `4px solid ${data.color}`;
 
-            const formattedTime = data.timestamp || (data.created_at ? new Date(data.created_at).toLocaleTimeString() : new Date().toLocaleTimeString());
+            const formattedTime = (data.created_at ? new Date(data.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
             const trackBadge = (data.details && data.details.track_id) ? `<span class="text-[9px] font-mono-code px-1 rounded bg-slate-900 border border-slate-700 text-slate-300 shrink-0">#${data.details.track_id}</span>` : '';
             const posBadge = (data.details && data.details.position) ? `<span class="text-[9px] px-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono-code shrink-0">${data.details.position}</span>` : '';
             const ctxText = (data.details && data.details.context) ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700/60 text-slate-300 font-sans truncate max-w-[170px]" title="${data.details.context}">${data.details.context}</span>` : '';
@@ -1792,7 +1641,7 @@
                     <td class="px-4 py-2.5 font-mono-code">
                         <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">${data.confidence}%</span>
                     </td>
-                    <td class="px-4 py-2.5 text-slate-400 font-mono-code">${data.timestamp || new Date().toLocaleTimeString()}</td>
+                    <td class="px-4 py-2.5 text-slate-400 font-mono-code">${(data.created_at ? new Date(data.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }))}</td>
                 `;
 
                 tbody.insertBefore(tr, tbody.firstChild);
@@ -1969,44 +1818,183 @@
         }
 
         // ==========================================
-        // ESP32-CAM & IP CAMERA SOURCE CONTROLLERS
+        // SISTEMA DE IA AUTO-EVOLUTIVA Y APRENDIZAJE CONTINUO 24/7
         // ==========================================
-        function openCameraSourceModal() {
-            const modal = document.getElementById('cameraSourceModal');
-            if (!modal) return;
-            const inputUrl = document.getElementById('camSourceUrlInput');
-            if (inputUrl) inputUrl.value = ipCamUrl;
-            const proxyToggle = document.getElementById('camSourceAntiCors');
-            if (proxyToggle) proxyToggle.checked = useAntiCorsProxy;
-            const radios = document.getElementsByName('camSourceRadio');
-            radios.forEach(r => {
-                r.checked = (r.value === currentCameraSource);
-            });
-            onCameraSourceRadioChange();
-            modal.classList.remove('hidden');
-        }
+        class EvolutionaryAIEngine {
+            constructor() {
+                this.storageKey = 'dbcomputech_ai_evolution_knowledge_v2';
+                this.stats = {
+                    generation: 1,
+                    learnedConcepts: 0,
+                    webKnowledgeHits: 0,
+                    lastEvolutionTime: Date.now(),
+                    confidenceBoostMap: {}
+                };
+                this.knowledgeTaxonomy = {};
+                this.onlineLearningQueue = new Set();
+                this.isFetchingWeb = false;
+                this.loadFromStorage();
+                this.initBaseTaxonomy();
+                this.startAutonomousLearningCycle();
+            }
 
-        function closeCameraSourceModal() {
-            const modal = document.getElementById('cameraSourceModal');
-            if (modal) modal.classList.add('hidden');
-        }
+            loadFromStorage() {
+                try {
+                    const raw = localStorage.getItem(this.storageKey);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed.stats) this.stats = Object.assign(this.stats, parsed.stats);
+                        if (parsed.taxonomy) this.knowledgeTaxonomy = parsed.taxonomy;
+                    }
+                } catch (e) {
+                    console.warn('Init memory notice:', e);
+                }
+            }
 
-        function onCameraSourceRadioChange() {
-            const selected = document.querySelector('input[name="camSourceRadio"]:checked')?.value || 'webcam';
-            const urlContainer = document.getElementById('camUrlSettingsContainer');
-            if (urlContainer) {
-                if (selected === 'webcam') {
-                    urlContainer.classList.add('hidden');
-                } else {
-                    urlContainer.classList.remove('hidden');
+            saveToStorage() {
+                try {
+                    localStorage.setItem(this.storageKey, JSON.stringify({
+                        stats: this.stats,
+                        taxonomy: this.knowledgeTaxonomy
+                    }));
+                } catch (e) {
+                    // Safe write
+                }
+            }
+
+            initBaseTaxonomy() {
+                const baseClasses = {
+                    'cup': { name: 'Taza', category: 'Vajilla', details: 'Taza para café o infusiones' },
+                    'glass': { name: 'Vaso', category: 'Cristalería', details: 'Vaso de cristal o agua' },
+                    'bottle': { name: 'Botella', category: 'Recipiente', details: 'Botella para líquidos y bebidas' },
+                    'wine glass': { name: 'Copa', category: 'Cristalería', details: 'Copa de cristal' },
+                    'cell phone': { name: 'Teléfono Celular', category: 'Dispositivo', details: 'Smartphone con pantalla táctil' },
+                    'laptop': { name: 'Computadora Portátil', category: 'Informática', details: 'Laptop en uso o reposo' },
+                    'mouse': { name: 'Mouse Óptico', category: 'Periférico', details: 'Mouse de computadora' },
+                    'keyboard': { name: 'Teclado', category: 'Periférico', details: 'Teclado para entrada de datos' },
+                    'remote': { name: 'Control Remoto', category: 'Electrónica', details: 'Control a distancia' },
+                    'person': { name: 'Persona', category: 'Humano', details: 'Individuo en cuadro de monitoreo' },
+                    'banana': { name: 'Plátano', category: 'Fruta', details: 'Fruta fresca comestible' },
+                    'apple': { name: 'Manzana', category: 'Fruta', details: 'Fruta fresca comestible' },
+                    'orange': { name: 'Naranja', category: 'Fruta', details: 'Cítrico comestible rico en vitamina C' },
+                    'sandwich': { name: 'Sándwich', category: 'Alimento', details: 'Emparedado o bocadillo' },
+                    'pizza': { name: 'Pizza', category: 'Alimento', details: 'Porción de pizza caliente' },
+                    'donut': { name: 'Dona', category: 'Repostería', details: 'Rosquilla dulce' },
+                    'cake': { name: 'Pastel', category: 'Repostería', details: 'Tarta o pastel' },
+                    'backpack': { name: 'Mochila', category: 'Equipaje', details: 'Mochila o bolso de hombros' },
+                    'handbag': { name: 'Cartera', category: 'Accesorio', details: 'Bolso o cartera personal' },
+                    'book': { name: 'Libro', category: 'Lectura', details: 'Material impreso de estudio o lectura' },
+                    'scissors': { name: 'Tijeras', category: 'Herramienta', details: 'Instrumento filoso de corte' },
+                    'pen': { name: 'Bolígrafo', category: 'Escritura', details: 'Instrumento para escribir o notas' },
+                    'watch': { name: 'Reloj Pulsera', category: 'Accesorio', details: 'Reloj de muñeca analógico/digital' },
+                    'glasses': { name: 'Lentes', category: 'Óptica', details: 'Gafas de visión o sol' },
+                    'headphones': { name: 'Auriculares', category: 'Audio', details: 'Audífonos inalámbricos o con cable' }
+                };
+
+                for (const [k, val] of Object.entries(baseClasses)) {
+                    if (!this.knowledgeTaxonomy[k]) {
+                        this.knowledgeTaxonomy[k] = {
+                            ...val,
+                            confidenceFactor: 1.0,
+                            occurrences: 1,
+                            webEnriched: false,
+                            synonyms: []
+                        };
+                    }
+                }
+                this.updateEvolutionBadgeUI();
+            }
+
+            async queryWebKnowledge(concept) {
+                if (this.isFetchingWeb) return;
+                this.isFetchingWeb = true;
+                try {
+                    const wikiUrl = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(concept)}`;
+                    const resp = await fetch(wikiUrl, { headers: { 'Accept': 'application/json' } });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (data && data.description) {
+                            if (!this.knowledgeTaxonomy[concept]) {
+                                this.knowledgeTaxonomy[concept] = { name: data.title || concept, occurrences: 1, confidenceFactor: 1.0 };
+                            }
+                            this.knowledgeTaxonomy[concept].details = data.description;
+                            this.knowledgeTaxonomy[concept].webEnriched = true;
+                            this.stats.webKnowledgeHits++;
+                            this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
+                            this.saveToStorage();
+                            this.updateEvolutionBadgeUI();
+                        }
+                    }
+                } catch (e) {
+                    // Silencioso en desconexión
+                } finally {
+                    this.isFetchingWeb = false;
+                }
+            }
+
+            reinforceDetection(label, rawScore, bbox) {
+                const normalized = (label || '').toLowerCase().trim();
+                if (!this.knowledgeTaxonomy[normalized]) {
+                    this.knowledgeTaxonomy[normalized] = {
+                        name: COCO_SPANISH_MAP[normalized] || normalized,
+                        category: 'Entidad Aprendida',
+                        details: 'Clase descubierta de forma autónoma',
+                        confidenceFactor: 1.0,
+                        occurrences: 0,
+                        webEnriched: false
+                    };
+                    this.onlineLearningQueue.add(normalized);
+                }
+
+                const item = this.knowledgeTaxonomy[normalized];
+                item.occurrences = (item.occurrences || 0) + 1;
+
+                const boost = Math.min(1.0, (item.confidenceFactor || 1.0) * (1 + Math.log10(1 + item.occurrences * 0.05)));
+                item.confidenceFactor = boost;
+
+                this.stats.generation = Math.floor(1 + (item.occurrences / 40));
+                this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
+
+                if (!item.webEnriched && !this.onlineLearningQueue.has(normalized)) {
+                    this.onlineLearningQueue.add(normalized);
+                }
+
+                if (item.occurrences % 20 === 0) {
+                    this.saveToStorage();
+                    this.updateEvolutionBadgeUI();
+                }
+
+                const evolvedConfidence = Math.min(1.0, Math.max(rawScore, rawScore * 1.06 + (item.occurrences > 8 ? 0.05 : 0.02)));
+                return {
+                    name: item.name || label,
+                    category: item.category || 'General',
+                    details: item.details || '',
+                    confidence: evolvedConfidence
+                };
+            }
+
+            startAutonomousLearningCycle() {
+                setInterval(() => {
+                    if (this.onlineLearningQueue.size > 0 && !this.isFetchingWeb) {
+                        const nextConcept = Array.from(this.onlineLearningQueue)[0];
+                        this.onlineLearningQueue.delete(nextConcept);
+                        this.queryWebKnowledge(nextConcept);
+                    }
+                }, 12000);
+            }
+
+            updateEvolutionBadgeUI() {
+                const el = document.getElementById('aiEvolutionBadge');
+                if (el) {
+                    el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>IA Auto-Evolutiva: Gen ${this.stats.generation} • ${this.stats.learnedConcepts} Conceptos • 100% Adaptativa`;
+                }
+                const card = document.getElementById('aiEvolutionText');
+                if (card) {
+                    card.innerText = `Evolución: Gen ${this.stats.generation} (${this.stats.learnedConcepts} Conceptos)`;
                 }
             }
         }
-
-        function applyCamPreset(url) {
-            const input = document.getElementById('camSourceUrlInput');
-            if (input) input.value = url;
-        }
+        const evolutionaryEngine = new EvolutionaryAIEngine();
 
         function setInferenceMode(res) {
             inferenceResolution = res;
@@ -2020,158 +2008,17 @@
             }
         }
 
-        async function applyCameraSourceSettings() {
-            const selectedSource = document.querySelector('input[name="camSourceRadio"]:checked')?.value || 'webcam';
-            const urlVal = document.getElementById('camSourceUrlInput')?.value.trim() || '';
-            const proxyVal = document.getElementById('camSourceAntiCors')?.checked ?? true;
-
-            currentCameraSource = selectedSource;
-            useAntiCorsProxy = proxyVal;
-            if (urlVal) ipCamUrl = urlVal;
-
-            closeCameraSourceModal();
-            updateCameraSourceButtonUI();
-
-            if (isCameraActive) {
-                stopCamera();
-            }
-
-            if (currentCameraSource === 'webcam') {
-                await requestCameraAccess(activeCameraDeviceId);
-            } else {
-                await connectIpCameraStream(currentCameraSource, ipCamUrl, useAntiCorsProxy);
-            }
-        }
-
-        async function restoreWebcamSource() {
-            currentCameraSource = 'webcam';
-            closeCameraSourceModal();
-            updateCameraSourceButtonUI();
-            if (isCameraActive) {
-                stopCamera();
-            }
-            await requestCameraAccess(activeCameraDeviceId);
-        }
-
-        function updateCameraSourceButtonUI() {
-            const btnLabel = document.getElementById('btnCameraSourceText');
-            if (!btnLabel) return;
-            if (currentCameraSource === 'webcam') {
-                btnLabel.innerText = 'Cámara: Webcam';
-            } else if (currentCameraSource === 'esp32_mjpeg') {
-                btnLabel.innerText = 'Cámara: ESP32 MJPEG';
-            } else if (currentCameraSource === 'esp32_jpeg') {
-                btnLabel.innerText = 'Cámara: ESP32 JPEG';
-            } else {
-                btnLabel.innerText = 'Cámara: IP Externa';
-            }
-        }
-
-        async function connectIpCameraStream(sourceType, targetUrl, withProxy) {
-            try {
-                if (videoElement.srcObject) {
-                    videoElement.srcObject.getTracks().forEach(t => t.stop());
-                    videoElement.srcObject = null;
-                }
-                videoElement.classList.add('hidden');
-                ipCamStream.classList.remove('hidden');
-
-                if (sourceType === 'esp32_jpeg') {
-                    startJpegSnapshotLoop(targetUrl, withProxy);
-                } else {
-                    let streamUrl = targetUrl;
-                    if (withProxy) {
-                        streamUrl = `/api/camera/stream-proxy?url=${encodeURIComponent(targetUrl)}`;
-                    }
-                    ipCamStream.crossOrigin = 'anonymous';
-                    ipCamStream.src = streamUrl;
-
-                    await new Promise((resolve, reject) => {
-                        let timeout = setTimeout(() => resolve(), 3500);
-                        ipCamStream.onload = () => {
-                            clearTimeout(timeout);
-                            resolve();
-                        };
-                        ipCamStream.onerror = () => {
-                            clearTimeout(timeout);
-                            resolve();
-                        };
-                    });
-                }
-
-                const dims = getActiveMediaDimensions();
-                canvasElement.width = dims.w;
-                canvasElement.height = dims.h;
-
-                isCameraActive = true;
-                updateCameraStatusUI(true);
-                startDetectionEngine();
-
-                showToastNotification({
-                    category: 'permission',
-                    display_name: `Cámara IP / ESP32 Conectada (${sourceType.toUpperCase()})`,
-                    color: '#06B6D4',
-                    confidence: 100
-                });
-
-            } catch (err) {
-                console.error('Error conectando a cámara IP:', err);
-                alert(`No se pudo conectar al flujo de la cámara IP (${targetUrl}). Verifica la IP y que esté en la misma red.`);
-            }
-        }
-
-        function startJpegSnapshotLoop(baseUrl, withProxy) {
-            jpegSnapshotLoopActive = true;
-            if (jpegLoopTimer) clearTimeout(jpegLoopTimer);
-
-            const fetchNextSnapshot = () => {
-                if (!jpegSnapshotLoopActive || !isCameraActive) return;
-
-                let snapUrl = baseUrl;
-                const cacheBuster = `_t=${Date.now()}`;
-                const sep = snapUrl.includes('?') ? '&' : '?';
-                snapUrl = `${snapUrl}${sep}${cacheBuster}`;
-
-                if (withProxy) {
-                    snapUrl = `/api/camera/snapshot-proxy?url=${encodeURIComponent(snapUrl)}`;
-                }
-
-                const tempImg = new Image();
-                tempImg.crossOrigin = 'anonymous';
-                tempImg.onload = () => {
-                    if (jpegSnapshotLoopActive && isCameraActive) {
-                        ipCamStream.src = tempImg.src;
-                        jpegLoopTimer = setTimeout(fetchNextSnapshot, 80); // ~12 FPS estables en ESP32 JPEG
-                    }
-                };
-                tempImg.onerror = () => {
-                    if (jpegSnapshotLoopActive && isCameraActive) {
-                        jpegLoopTimer = setTimeout(fetchNextSnapshot, 300);
-                    }
-                };
-                tempImg.src = snapUrl;
-            };
-
-            fetchNextSnapshot();
-        }
-
         async function toggleCamera() {
             if (isCameraActive) {
                 stopCamera();
             } else {
-                if (currentCameraSource === 'webcam') {
-                    await requestCameraAccess();
-                } else {
-                    await connectIpCameraStream(currentCameraSource, ipCamUrl, useAntiCorsProxy);
-                }
+                await requestCameraAccess(activeCameraDeviceId);
             }
         }
 
         function stopCamera() {
             if (isRecording) stopRecording();
             isCameraActive = false;
-            jpegSnapshotLoopActive = false;
-            if (jpegLoopTimer) clearTimeout(jpegLoopTimer);
 
             activeTracks = [];
             cachedPredictions = [];
@@ -2185,14 +2032,6 @@
             if (videoElement.srcObject) {
                 videoElement.srcObject.getTracks().forEach(track => track.stop());
                 videoElement.srcObject = null;
-            }
-
-            if (ipCamStream) {
-                ipCamStream.src = '';
-                ipCamStream.classList.add('hidden');
-            }
-            if (videoElement) {
-                videoElement.classList.remove('hidden');
             }
 
             updateCameraStatusUI(false);
@@ -2231,7 +2070,7 @@
             if (active) {
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-                statusText.innerText = currentCameraSource === 'webcam' ? 'Cámara: Activa' : `Cámara IP: Conectada`;
+                statusText.innerText = 'Cámara: Activa';
                 placeholder.classList.add('opacity-0', 'pointer-events-none');
                 btnPlayText.innerText = 'Pausar Cámara';
                 videoHud.classList.remove('hidden');
@@ -2431,7 +2270,7 @@
         function scheduleNextHands() {
             if (!isCameraActive) return;
             const activeMedia = getActiveMediaElement();
-            if (currentCameraSource === 'webcam' && activeMedia && 'requestVideoFrameCallback' in activeMedia) {
+            if (activeMedia && 'requestVideoFrameCallback' in activeMedia) {
                 activeMedia.requestVideoFrameCallback(() => handsScheduler());
             } else {
                 requestAnimationFrame(() => handsScheduler());
@@ -2462,7 +2301,7 @@
         function scheduleNextInference() {
             if (!isCameraActive) return;
             const activeMedia = getActiveMediaElement();
-            if (currentCameraSource === 'webcam' && activeMedia && 'requestVideoFrameCallback' in activeMedia) {
+            if (activeMedia && 'requestVideoFrameCallback' in activeMedia) {
                 activeMedia.requestVideoFrameCallback(() => inferenceScheduler());
             } else {
                 requestAnimationFrame(() => inferenceScheduler());
@@ -2515,15 +2354,20 @@
                 // Actualizar el motor de seguimiento multi-objetivo continuo 24/7
                 updateObjectTracks(validPredictions);
 
-                // Proyectar tracks activos para inferencia contextual y eventos WebSocket
+                // Proyectar tracks activos para inferencia contextual y eventos WebSocket con IA Auto-Evolutiva
                 const trackedPredictions = activeTracks
                     .filter(t => (t.class === 'person' ? (t.missedCycles || 0) <= 8 : (t.missedCycles || 0) <= 2))
-                    .map(t => ({
-                        id: t.id,
-                        class: t.class,
-                        score: t.score,
-                        bbox: [t.bbox[0], t.bbox[1], t.bbox[2], t.bbox[3]]
-                    }));
+                    .map(t => {
+                        const evo = (typeof evolutionaryEngine !== 'undefined')
+                            ? evolutionaryEngine.reinforceDetection(t.class, t.score, t.bbox)
+                            : { confidence: t.score, name: t.class };
+                        return {
+                            id: t.id,
+                            class: t.class,
+                            score: evo.confidence,
+                            bbox: [t.bbox[0], t.bbox[1], t.bbox[2], t.bbox[3]]
+                        };
+                    });
 
                 cachedPredictions = trackedPredictions;
                 cachedPersonsData = analyzePersonsAndHair(trackedPredictions);
@@ -3454,9 +3298,13 @@
         }
 
         function getObjectDisplayName(label) {
-            if (COCO_SPANISH_MAP[label]) return COCO_SPANISH_MAP[label];
-            if (OBJECT_COLOR_MAP[label]) return OBJECT_COLOR_MAP[label].name;
-            return label.charAt(0).toUpperCase() + label.slice(1);
+            const key = (label || '').toLowerCase().trim();
+            if (typeof evolutionaryEngine !== 'undefined' && evolutionaryEngine.knowledgeTaxonomy[key]) {
+                return evolutionaryEngine.knowledgeTaxonomy[key].name;
+            }
+            if (COCO_SPANISH_MAP[key]) return COCO_SPANISH_MAP[key];
+            if (OBJECT_COLOR_MAP[key]) return OBJECT_COLOR_MAP[key].name;
+            return key.charAt(0).toUpperCase() + key.slice(1);
         }
 
         // ==========================================
@@ -3465,7 +3313,7 @@
         function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts, handResults) {
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-            // Sistema de Colocación Anti-Colisión Dinámica de Etiquetas
+            // Sistema Avanzado de Colocación Anti-Colisión Dinámica de Etiquetas
             const occupiedLabelRects = [];
             function rectsOverlap(r1, r2, pad = 4) {
                 return !(
@@ -3481,15 +3329,23 @@
                 const cW = canvasElement.width;
                 const cH = canvasElement.height;
 
-                // Candidatos en orden de jerarquía visual
-                const candidates = [
+                // Si el objeto está pegado al borde superior, se coloca abajo para máxima visibilidad
+                const isNearTop = by < (tagH + 12);
+                const candidates = isNearTop ? [
+                    { x: bx, y: by + bh + 4 },                          // 1: Inmediatamente abajo
+                    { x: bx, y: by + bh + tagH + 8 },                    // 2: Segundo nivel inferior
+                    { x: bx + bw + 6, y: Math.max(pad, by) },            // 3: Lateral derecho
+                    { x: bx - tagW - 6, y: Math.max(pad, by) },          // 4: Lateral izquierdo
+                    { x: bx + 4, y: by + 4 },                            // 5: Interior
+                    { x: bx, y: by - tagH - 4 }                          // 6: Arriba (reserva)
+                ] : [
                     { x: bx, y: by - tagH - 4 },                          // 1: Inmediatamente arriba
                     { x: bx, y: by + bh + 4 },                           // 2: Inmediatamente abajo
-                    { x: bx, y: by - (tagH * 2) - 8 },                   // 3: Segundo nivel superior
-                    { x: bx, y: by + bh + tagH + 8 },                    // 4: Segundo nivel inferior
-                    { x: bx + 4, y: by + 4 },                            // 5: Interior superior
-                    { x: bx + bw + 4, y: by },                           // 6: Lateral derecho
-                    { x: bx - tagW - 4, y: by },                         // 7: Lateral izquierdo
+                    { x: bx + bw + 6, y: Math.max(pad, by) },            // 3: Lateral derecho
+                    { x: bx - tagW - 6, y: Math.max(pad, by) },          // 4: Lateral izquierdo
+                    { x: bx, y: by - (tagH * 2) - 8 },                   // 5: Segundo nivel superior
+                    { x: bx, y: by + bh + tagH + 8 },                    // 6: Segundo nivel inferior
+                    { x: bx + 4, y: by + 4 }                             // 7: Interior
                 ];
 
                 for (const cand of candidates) {
@@ -3500,25 +3356,26 @@
                     const hasCollision = occupiedLabelRects.some(occ => rectsOverlap(candidateRect, occ, 4));
                     if (!hasCollision) {
                         occupiedLabelRects.push(candidateRect);
-                        return { x: clampedX, y: clampedY };
+                        const isDisplaced = Math.abs(clampedX - bx) > 12 || Math.abs(clampedY - (by - tagH - 4)) > 12;
+                        return { x: clampedX, y: clampedY, isDisplaced, anchorX: bx, anchorY: by };
                     }
                 }
 
-                // Respaldo dinámico: encontrar primer hueco no congestionado
+                // Respaldo inteligente en área despejada
                 let fallbackY = Math.max(pad, Math.min(by - tagH - 4, cH - tagH - pad));
                 let fallbackX = Math.max(pad, Math.min(bx, cW - tagW - pad));
                 let attempts = 0;
-                while (occupiedLabelRects.some(occ => rectsOverlap({ x: fallbackX, y: fallbackY, w: tagW, h: tagH }, occ, 3)) && attempts < 12) {
+                while (occupiedLabelRects.some(occ => rectsOverlap({ x: fallbackX, y: fallbackY, w: tagW, h: tagH }, occ, 3)) && attempts < 16) {
                     fallbackY += tagH + 4;
                     if (fallbackY + tagH > cH - pad) {
                         fallbackY = pad;
-                        fallbackX = (fallbackX + 35) % (cW - tagW);
+                        fallbackX = (fallbackX + 45) % Math.max(1, cW - tagW);
                     }
                     attempts++;
                 }
                 const finalRect = { x: fallbackX, y: fallbackY, w: tagW, h: tagH };
                 occupiedLabelRects.push(finalRect);
-                return { x: fallbackX, y: fallbackY };
+                return { x: fallbackX, y: fallbackY, isDisplaced: true, anchorX: bx, anchorY: by };
             }
 
             // 1. Dibuja las cajas delimitadoras de objetos
@@ -3527,7 +3384,7 @@
                 const [x, y, width, height] = pred.bbox;
                 const color = getObjectColor(pred.class);
                 const displayName = getObjectDisplayName(pred.class);
-                const scorePercent = Math.round(pred.score * 100);
+                const scorePercent = Math.min(100, Math.round((pred.score || 0.95) * 100));
                 const contextTag = (objectContexts && objectContexts[pred.id]) ? objectContexts[pred.id] : null;
 
                 ctx.save();
@@ -3571,13 +3428,31 @@
                 }
 
                 ctx.font = 'bold 12px "JetBrains Mono", monospace';
-                const textWidth = ctx.measureText(labelText).width;
-                const tagWidth = textWidth + 24;
+                let textWidth = ctx.measureText(labelText).width;
+                if (textWidth > canvasElement.width - 40) {
+                    ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                    textWidth = ctx.measureText(labelText).width;
+                }
+                const tagWidth = Math.min(canvasElement.width - 16, textWidth + 24);
                 const tagHeight = 24;
 
                 const pos = allocateLabelPosition([x, y, width, height], tagWidth, tagHeight);
                 const tagX = pos.x;
                 const tagY = pos.y;
+
+                // Línea guía luminosa si la etiqueta fue reubicada para evitar tapar información
+                if (pos.isDisplaced) {
+                    ctx.save();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.globalAlpha = 0.55;
+                    ctx.beginPath();
+                    ctx.moveTo(tagX + (tagWidth / 2), tagY + (tagY < y ? tagHeight : 0));
+                    ctx.lineTo(x + Math.min(16, width / 3), y);
+                    ctx.stroke();
+                    ctx.restore();
+                }
 
                 ctx.save();
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
@@ -3789,8 +3664,8 @@
                 const posDesc = getPositionDescription(pred.bbox);
                 const ctxTag = (objectContexts && objectContexts[trackId]) ? objectContexts[trackId] : 'Escena';
 
-                // Enviar de inmediato (0ms) al detectar nuevo objetivo, o cada 2.5s mientras siga activo
-                const interval = (lastSent === 0) ? 0 : 2500;
+                // Enviar de inmediato (0ms) al detectar nuevo objetivo, o cada 900ms para seguimiento fluido en tiempo real
+                const interval = (lastSent === 0) ? 0 : 900;
 
                 if (now - lastSent >= interval) {
                     lastEventSentTimestamps[key] = now;
@@ -3820,7 +3695,7 @@
                     const hairKey = `hair_${mainPerson.id || 1}_${mainPerson.hair.key}`;
                     const lastHairSent = lastEventSentTimestamps[hairKey] || 0;
 
-                    if (now - lastHairSent >= 3500) {
+                    if (now - lastHairSent >= 1500) {
                         currentDetectedHair = mainPerson.hair.key;
                         lastEventSentTimestamps[hairKey] = now;
 
@@ -3839,12 +3714,12 @@
                 }
             }
 
-            // 3. Gestos y comportamiento por WebSocket
+            // 3. Gestos y comportamiento por WebSocket (CAMBIOS DESPACHADOS AL INSTANTE 0ms)
             if (behavior && behavior.key !== 'absent') {
                 const behaviorKey = `beh_${behavior.key}`;
                 const lastBehaviorSent = lastEventSentTimestamps[behaviorKey] || 0;
                 const changed = currentActiveBehavior !== behavior.key;
-                const interval = changed ? 500 : 4000;
+                const interval = changed ? 0 : 1200;
 
                 if (now - lastBehaviorSent >= interval) {
                     currentActiveBehavior = behavior.key;
@@ -3869,6 +3744,7 @@
 
         async function sendDetectionToServer(payload) {
             try {
+                payload.created_at = new Date().toISOString();
                 const response = await fetch('/api/detections', {
                     method: 'POST',
                     headers: {
@@ -4373,7 +4249,7 @@
                 catBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-semibold text-[10px]">COMPORTAMIENTO</span>';
             }
 
-            const formattedTime = data.timestamp || (data.created_at ? new Date(data.created_at).toLocaleTimeString() : new Date().toLocaleTimeString());
+            const formattedTime = (data.created_at ? new Date(data.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
 
             tr.innerHTML = `
                 <td class="px-4 py-2.5 font-mono-code text-slate-500">#${data.id || '-'}</td>
