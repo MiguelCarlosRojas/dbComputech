@@ -6,7 +6,9 @@ use App\Events\DetectionDetected;
 use App\Models\DetectionLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DetectionController extends Controller
 {
@@ -323,5 +325,87 @@ class DetectionController extends Controller
             'top_objects' => $topObjects,
             'top_behaviors' => $topBehaviors,
         ];
+    }
+
+    /**
+     * Proxy for ESP32-CAM and IP camera JPEG snapshots.
+     * Bypasses browser CORS restrictions to allow AI canvas processing.
+     */
+    public function snapshotProxy(Request $request)
+    {
+        $url = $request->query('url');
+        if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return response()->json(['error' => 'URL de cámara no válida.'], 400);
+        }
+
+        try {
+            $response = Http::timeout(4)->withoutVerifying()->get($url);
+            if ($response->successful()) {
+                $contentType = $response->header('Content-Type') ?: 'image/jpeg';
+                return response($response->body(), 200, [
+                    'Content-Type' => $contentType,
+                    'Access-Control-Allow-Origin' => '*',
+                    'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                    'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                    'Pragma' => 'no-cache',
+                    'Expires' => '0',
+                ]);
+            }
+            return response()->json(['error' => 'No se pudo obtener el fotograma de la cámara.'], 502);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Error al conectar con la cámara: ' . $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * Proxy for ESP32-CAM and IP camera MJPEG video stream.
+     * Streams multipart/x-mixed-replace data directly with CORS headers.
+     */
+    public function streamProxy(Request $request)
+    {
+        $url = $request->query('url');
+        if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return response()->json(['error' => 'URL de stream no válida.'], 400);
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 8,
+                'follow_location' => 1,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ]
+        ]);
+
+        $stream = @fopen($url, 'r', false, $context);
+        if (!$stream) {
+            return response()->json(['error' => 'No se pudo abrir el stream de la cámara ESP32-CAM.'], 502);
+        }
+
+        return new StreamedResponse(function () use ($stream) {
+            try {
+                while (!feof($stream) && connection_status() === CONNECTION_NORMAL) {
+                    $chunk = fread($stream, 8192);
+                    if ($chunk !== false && strlen($chunk) > 0) {
+                        echo $chunk;
+                        flush();
+                    }
+                }
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+        }, 200, [
+            'Content-Type' => 'multipart/x-mixed-replace; boundary=frame',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 }

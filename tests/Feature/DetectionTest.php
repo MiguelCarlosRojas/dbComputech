@@ -141,4 +141,13 @@ class DetectionTest extends TestCase
 
         $this->assertDatabaseCount('detection_logs', 0);
     }
+
+    public function test_camera_proxy_validates_url(): void
+    {
+        $responseStream = $this->get('/api/camera/stream-proxy');
+        $responseStream->assertStatus(400);
+
+        $responseSnapshot = $this->get('/api/camera/snapshot-proxy');
+        $responseSnapshot->assertStatus(400);
+    }
 }

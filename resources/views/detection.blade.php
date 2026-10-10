@@ -310,8 +310,11 @@
 
                     <!-- Video Viewport & Canvas Overlay -->
                     <div id="videoViewport" class="relative bg-black w-full flex-1 min-h-[280px] sm:min-h-[380px] md:min-h-[460px] lg:min-h-[560px] flex items-center justify-center overflow-hidden">
-                        <!-- Video element -->
+                        <!-- Video element (Webcam local) -->
                         <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+
+                        <!-- ESP32-CAM / IP Camera MJPEG & JPEG Stream Element -->
+                        <img id="ipCamStream" crossorigin="anonymous" class="hidden absolute inset-0 w-full h-full object-cover" alt="ESP32-CAM / IP Stream" />
 
                         <!-- Canvas for AI Bounding boxes and Overlays -->
                         <canvas id="canvasOverlay" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"></canvas>
@@ -351,6 +354,12 @@
                         <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <x-button variant="emerald" size="sm" id="btnTogglePlay" onclick="toggleCamera()">
                                 <span id="btnPlayText">Iniciar Detección</span>
+                            </x-button>
+
+                            <!-- SELECTOR DE FUENTE DE CÁMARA (WEBCAM / ESP32-CAM MJPEG / JPEG SNAPSHOT) -->
+                            <x-button variant="secondary" size="sm" id="btnCameraSource" onclick="openCameraSourceModal()" icon='<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>'>
+                                <span class="hidden sm:inline" id="cameraSourceLabel">Cámara: Webcam</span>
+                                <span class="sm:hidden" id="cameraSourceLabelMobile">Webcam</span>
                             </x-button>
                             <!-- PERMISSION & HARDWARE PROTECTED BUTTON: CAMBIAR CÁMARA (Solo visible si hay 2 o más cámaras) -->
                             <div id="btnSwitchCamWrapper" class="hidden relative inline-block">
@@ -727,6 +736,142 @@
     <!-- Floating Toast Notification Container (Top Right) -->
     <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
 
+    <!-- Camera Source Selector Modal (Webcam / ESP32-CAM MJPEG / JPEG / IP Camera) -->
+    <div id="cameraSourceModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-slate-200">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-sm sm:text-base font-bold text-white">Configuración de Cámara & Protocolo</h4>
+                        <p class="text-[11px] text-slate-400">Soporte para Webcam Local, ESP32-CAM (MJPEG / JPEG) y Cámaras IP</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeCameraSourceModal()" class="w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Protocol / Mode Selector -->
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-semibold text-slate-300">Tipo de Cámara:</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcWebcam">
+                        <input type="radio" name="camSourceType" value="webcam" checked onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-white block">Cámara Web Local</span>
+                            <span class="text-[10px] text-slate-400 block truncate">Dispositivo USB o Integrado</span>
+                        </div>
+                    </label>
+
+                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcEsp32Mjpeg">
+                        <input type="radio" name="camSourceType" value="esp32_mjpeg" onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-cyan-300 block">ESP32-CAM (MJPEG)</span>
+                            <span class="text-[10px] text-slate-400 block truncate">Flujo de video continuo :81/stream</span>
+                        </div>
+                    </label>
+
+                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcEsp32Jpeg">
+                        <input type="radio" name="camSourceType" value="esp32_jpeg" onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-emerald-300 block">ESP32-CAM (JPEG)</span>
+                            <span class="text-[10px] text-slate-400 block truncate">Capturas fotográficas /capture</span>
+                        </div>
+                    </label>
+
+                    <label class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/50 cursor-pointer flex items-center gap-3 transition" id="lblSrcIpCustom">
+                        <input type="radio" name="camSourceType" value="ip_custom" onchange="onCameraSourceRadioChange(this.value)" class="accent-cyan-400">
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-purple-300 block">Cámara IP Personalizada</span>
+                            <span class="text-[10px] text-slate-400 block truncate">Cualquier URL HTTP de red</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ESP32-CAM / IP Camera Settings (Shown if not webcam) -->
+            <div id="ipCameraSettingsBlock" class="hidden flex flex-col gap-3 p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                <div class="flex flex-col gap-1.5">
+                    <label for="ipCamUrlInput" class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                        <span>URL de la Cámara en Red Local:</span>
+                        <span class="text-[10px] text-cyan-400 font-mono-code" id="ipCamProtocolTag">Protocolo: MJPEG</span>
+                    </label>
+                    <input id="ipCamUrlInput" type="text" value="http://192.168.1.50:81/stream" placeholder="http://192.168.1.50:81/stream" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono-code text-white focus:outline-none focus:border-cyan-400 transition">
+                </div>
+
+                <!-- Presets Rápidos -->
+                <div>
+                    <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Presets Rápidos ESP32-CAM:</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="applyCamPreset('http://192.168.1.50:81/stream', 'esp32_mjpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-cyan-300 border border-slate-700 transition">
+                            :81/stream (MJPEG estándar)
+                        </button>
+                        <button type="button" onclick="applyCamPreset('http://192.168.1.50/stream', 'esp32_mjpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-cyan-300 border border-slate-700 transition">
+                            :80/stream (MJPEG puerto 80)
+                        </button>
+                        <button type="button" onclick="applyCamPreset('http://192.168.1.50/capture', 'esp32_jpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-emerald-300 border border-slate-700 transition">
+                            /capture (JPEG Snapshot)
+                        </button>
+                        <button type="button" onclick="applyCamPreset('http://192.168.1.50/jpg', 'esp32_jpeg')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono-code text-emerald-300 border border-slate-700 transition">
+                            /jpg (JPEG Snapshot)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Anti-CORS Proxy Checkbox -->
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input id="antiCorsProxyCheck" type="checkbox" checked class="w-4 h-4 rounded accent-cyan-400 cursor-pointer">
+                        <span class="text-xs text-slate-300">Proxy Anti-CORS dbCOMPUTECH</span>
+                    </label>
+                    <span class="text-[10px] text-slate-500 max-w-[200px] text-right">Permite a la IA procesar fotogramas sin bloqueo de seguridad</span>
+                </div>
+            </div>
+
+            <!-- Professional Inference Precision Mode Selector -->
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Motor de Inferencia de Objetos Profesional:</span>
+                    <span id="inferResTag" class="text-cyan-400 font-mono-code text-[10px]">640px (Pro HD)</span>
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" onclick="setInferenceMode(640, 'Pro HD')" id="btnInferPro" class="p-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 text-xs font-semibold flex flex-col items-center gap-0.5 transition shadow-sm">
+                        <span>Pro HD (640p)</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Máxima Precisión</span>
+                    </button>
+                    <button type="button" onclick="setInferenceMode(512, 'Equilibrado')" id="btnInferBal" class="p-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 text-xs font-semibold flex flex-col items-center gap-0.5 transition">
+                        <span>Equilibrado (512p)</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Velocidad y detalle</span>
+                    </button>
+                    <button type="button" onclick="setInferenceMode(400, 'Rápido')" id="btnInferFast" class="p-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 text-xs font-semibold flex flex-col items-center gap-0.5 transition">
+                        <span>Rápido (400p)</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Menor consumo</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+                <button type="button" onclick="restoreWebcamSource()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+                    Restaurar Webcam
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeCameraSourceModal()" class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 text-xs font-medium transition">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="applyCameraSourceSettings()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-cyan-500/20">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Conectar y Aplicar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Snapshot Modal -->
     <div id="snapshotModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-5 shadow-2xl flex flex-col gap-4">
@@ -793,6 +938,13 @@
         let isCameraActive = false;
         let currentFacingMode = 'user';
         let videoElement = document.getElementById('webcam');
+        let ipCamStream = document.getElementById('ipCamStream');
+        let currentCameraSource = 'webcam'; // 'webcam', 'esp32_mjpeg', 'esp32_jpeg', 'ip_custom'
+        let ipCamUrl = 'http://192.168.1.50:81/stream';
+        let useAntiCorsProxy = true;
+        let inferenceResolution = 640; // Pro HD default 640p
+        let jpegSnapshotLoopActive = false;
+        let jpegLoopTimer = null;
         let canvasElement = document.getElementById('canvasOverlay');
         let ctx = canvasElement.getContext('2d');
         let offscreenCanvas = document.getElementById('offscreenCanvas');
@@ -801,6 +953,36 @@
         let isModelLoading = false;
         let animationFrameId = null;
         let audioEnabled = true;
+
+        // Active Media Helpers (Soporte Transparente Webcam Local y ESP32-CAM)
+        function getActiveMediaElement() {
+            if (currentCameraSource === 'webcam') {
+                return videoElement;
+            }
+            return ipCamStream || document.getElementById('ipCamStream');
+        }
+
+        function getActiveMediaDimensions() {
+            if (currentCameraSource === 'webcam') {
+                return {
+                    w: (videoElement && videoElement.videoWidth) ? videoElement.videoWidth : 640,
+                    h: (videoElement && videoElement.videoHeight) ? videoElement.videoHeight : 480
+                };
+            }
+            const imgEl = ipCamStream || document.getElementById('ipCamStream');
+            return {
+                w: (imgEl && imgEl.naturalWidth) ? imgEl.naturalWidth : ((imgEl && imgEl.width) ? imgEl.width : 640),
+                h: (imgEl && imgEl.naturalHeight) ? imgEl.naturalHeight : ((imgEl && imgEl.height) ? imgEl.height : 480)
+            };
+        }
+
+        function isMediaSourceReady() {
+            if (currentCameraSource === 'webcam') {
+                return videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0;
+            }
+            const imgEl = ipCamStream || document.getElementById('ipCamStream');
+            return imgEl && imgEl.complete && (imgEl.naturalWidth > 0 || imgEl.width > 0);
+        }
 
         // Permissions State
         let hasSnapshotPermission = false;
@@ -889,8 +1071,17 @@
 
                     candidatePersons.push(p);
                 } else {
-                    // Para objetos: exigir confianza mínima para certidumbre total
-                    if (p.score >= minConfidence) {
+                    // Detección Profesional de Objetos: Oficina, estudio, cocina, electrónica y pertenencias
+                    const isCommonObject = [
+                        'cell phone', 'cup', 'bottle', 'apple', 'banana', 'orange', 'sandwich', 'pizza',
+                        'laptop', 'mouse', 'keyboard', 'book', 'pen', 'scissors', 'fork', 'knife', 'spoon',
+                        'backpack', 'handbag', 'suitcase', 'wallet', 'glasses', 'watch', 'remote', 'bowl',
+                        'broccoli', 'carrot', 'hot dog', 'donut', 'cake'
+                    ].includes(p.class);
+
+                    // Para objetos cotidianos y de mesa: umbral adaptativo profesional (permite captar celulares, tazas, frutas)
+                    const objThreshold = isCommonObject ? Math.max(0.24, minConfidence * 0.78) : minConfidence;
+                    if (p.score >= objThreshold) {
                         validObjects.push(p);
                     }
                 }
@@ -921,7 +1112,17 @@
                 }
             }
 
-            return [...nmsPersons, ...validObjects];
+            // 5. Non-Maximum Suppression (NMS) en objetos para evitar cajas dobles de un mismo elemento
+            validObjects.sort((a, b) => b.score - a.score);
+            const nmsObjects = [];
+            for (const obj of validObjects) {
+                const overlap = nmsObjects.some(existing => existing.class === obj.class && computeIoU(obj.bbox, existing.bbox) > 0.40);
+                if (!overlap) {
+                    nmsObjects.push(obj);
+                }
+            }
+
+            return [...nmsPersons, ...nmsObjects];
         }
 
         function updateObjectTracks(newPredictions) {
@@ -1122,6 +1323,7 @@
                 closeLeftDrawer();
                 closeRightDrawer();
                 closeSnapshotModal();
+                closeCameraSourceModal();
                 closeSystemStatusPanel();
             }
         });
@@ -1757,17 +1959,211 @@
             notice.querySelector('p').innerText = message;
         }
 
+        // ==========================================
+        // ESP32-CAM & IP CAMERA SOURCE CONTROLLERS
+        // ==========================================
+        function openCameraSourceModal() {
+            const modal = document.getElementById('cameraSourceModal');
+            if (!modal) return;
+            const inputUrl = document.getElementById('camSourceUrlInput');
+            if (inputUrl) inputUrl.value = ipCamUrl;
+            const proxyToggle = document.getElementById('camSourceAntiCors');
+            if (proxyToggle) proxyToggle.checked = useAntiCorsProxy;
+            const radios = document.getElementsByName('camSourceRadio');
+            radios.forEach(r => {
+                r.checked = (r.value === currentCameraSource);
+            });
+            onCameraSourceRadioChange();
+            modal.classList.remove('hidden');
+        }
+
+        function closeCameraSourceModal() {
+            const modal = document.getElementById('cameraSourceModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function onCameraSourceRadioChange() {
+            const selected = document.querySelector('input[name="camSourceRadio"]:checked')?.value || 'webcam';
+            const urlContainer = document.getElementById('camUrlSettingsContainer');
+            if (urlContainer) {
+                if (selected === 'webcam') {
+                    urlContainer.classList.add('hidden');
+                } else {
+                    urlContainer.classList.remove('hidden');
+                }
+            }
+        }
+
+        function applyCamPreset(url) {
+            const input = document.getElementById('camSourceUrlInput');
+            if (input) input.value = url;
+        }
+
+        function setInferenceMode(res) {
+            inferenceResolution = res;
+            const b640 = document.getElementById('btnMode640');
+            const b512 = document.getElementById('btnMode512');
+            const b400 = document.getElementById('btnMode400');
+            if (b640 && b512 && b400) {
+                b640.className = res === 640 ? 'p-2.5 rounded-lg border text-left transition bg-cyan-500/10 border-cyan-500/40 text-cyan-300 font-medium' : 'p-2.5 rounded-lg border text-left transition bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200';
+                b512.className = res === 512 ? 'p-2.5 rounded-lg border text-left transition bg-cyan-500/10 border-cyan-500/40 text-cyan-300 font-medium' : 'p-2.5 rounded-lg border text-left transition bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200';
+                b400.className = res === 400 ? 'p-2.5 rounded-lg border text-left transition bg-cyan-500/10 border-cyan-500/40 text-cyan-300 font-medium' : 'p-2.5 rounded-lg border text-left transition bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200';
+            }
+        }
+
+        async function applyCameraSourceSettings() {
+            const selectedSource = document.querySelector('input[name="camSourceRadio"]:checked')?.value || 'webcam';
+            const urlVal = document.getElementById('camSourceUrlInput')?.value.trim() || '';
+            const proxyVal = document.getElementById('camSourceAntiCors')?.checked ?? true;
+
+            currentCameraSource = selectedSource;
+            useAntiCorsProxy = proxyVal;
+            if (urlVal) ipCamUrl = urlVal;
+
+            closeCameraSourceModal();
+            updateCameraSourceButtonUI();
+
+            if (isCameraActive) {
+                stopCamera();
+            }
+
+            if (currentCameraSource === 'webcam') {
+                await requestCameraAccess(activeCameraDeviceId);
+            } else {
+                await connectIpCameraStream(currentCameraSource, ipCamUrl, useAntiCorsProxy);
+            }
+        }
+
+        async function restoreWebcamSource() {
+            currentCameraSource = 'webcam';
+            closeCameraSourceModal();
+            updateCameraSourceButtonUI();
+            if (isCameraActive) {
+                stopCamera();
+            }
+            await requestCameraAccess(activeCameraDeviceId);
+        }
+
+        function updateCameraSourceButtonUI() {
+            const btnLabel = document.getElementById('btnCameraSourceText');
+            if (!btnLabel) return;
+            if (currentCameraSource === 'webcam') {
+                btnLabel.innerText = 'Cámara: Webcam';
+            } else if (currentCameraSource === 'esp32_mjpeg') {
+                btnLabel.innerText = 'Cámara: ESP32 MJPEG';
+            } else if (currentCameraSource === 'esp32_jpeg') {
+                btnLabel.innerText = 'Cámara: ESP32 JPEG';
+            } else {
+                btnLabel.innerText = 'Cámara: IP Externa';
+            }
+        }
+
+        async function connectIpCameraStream(sourceType, targetUrl, withProxy) {
+            try {
+                if (videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(t => t.stop());
+                    videoElement.srcObject = null;
+                }
+                videoElement.classList.add('hidden');
+                ipCamStream.classList.remove('hidden');
+
+                if (sourceType === 'esp32_jpeg') {
+                    startJpegSnapshotLoop(targetUrl, withProxy);
+                } else {
+                    let streamUrl = targetUrl;
+                    if (withProxy) {
+                        streamUrl = `/api/camera/stream-proxy?url=${encodeURIComponent(targetUrl)}`;
+                    }
+                    ipCamStream.crossOrigin = 'anonymous';
+                    ipCamStream.src = streamUrl;
+
+                    await new Promise((resolve, reject) => {
+                        let timeout = setTimeout(() => resolve(), 3500);
+                        ipCamStream.onload = () => {
+                            clearTimeout(timeout);
+                            resolve();
+                        };
+                        ipCamStream.onerror = () => {
+                            clearTimeout(timeout);
+                            resolve();
+                        };
+                    });
+                }
+
+                const dims = getActiveMediaDimensions();
+                canvasElement.width = dims.w;
+                canvasElement.height = dims.h;
+
+                isCameraActive = true;
+                updateCameraStatusUI(true);
+                startDetectionEngine();
+
+                showToastNotification({
+                    category: 'permission',
+                    display_name: `Cámara IP / ESP32 Conectada (${sourceType.toUpperCase()})`,
+                    color: '#06B6D4',
+                    confidence: 100
+                });
+
+            } catch (err) {
+                console.error('Error conectando a cámara IP:', err);
+                alert(`No se pudo conectar al flujo de la cámara IP (${targetUrl}). Verifica la IP y que esté en la misma red.`);
+            }
+        }
+
+        function startJpegSnapshotLoop(baseUrl, withProxy) {
+            jpegSnapshotLoopActive = true;
+            if (jpegLoopTimer) clearTimeout(jpegLoopTimer);
+
+            const fetchNextSnapshot = () => {
+                if (!jpegSnapshotLoopActive || !isCameraActive) return;
+
+                let snapUrl = baseUrl;
+                const cacheBuster = `_t=${Date.now()}`;
+                const sep = snapUrl.includes('?') ? '&' : '?';
+                snapUrl = `${snapUrl}${sep}${cacheBuster}`;
+
+                if (withProxy) {
+                    snapUrl = `/api/camera/snapshot-proxy?url=${encodeURIComponent(snapUrl)}`;
+                }
+
+                const tempImg = new Image();
+                tempImg.crossOrigin = 'anonymous';
+                tempImg.onload = () => {
+                    if (jpegSnapshotLoopActive && isCameraActive) {
+                        ipCamStream.src = tempImg.src;
+                        jpegLoopTimer = setTimeout(fetchNextSnapshot, 80); // ~12 FPS estables en ESP32 JPEG
+                    }
+                };
+                tempImg.onerror = () => {
+                    if (jpegSnapshotLoopActive && isCameraActive) {
+                        jpegLoopTimer = setTimeout(fetchNextSnapshot, 300);
+                    }
+                };
+                tempImg.src = snapUrl;
+            };
+
+            fetchNextSnapshot();
+        }
+
         async function toggleCamera() {
             if (isCameraActive) {
                 stopCamera();
             } else {
-                await requestCameraAccess();
+                if (currentCameraSource === 'webcam') {
+                    await requestCameraAccess();
+                } else {
+                    await connectIpCameraStream(currentCameraSource, ipCamUrl, useAntiCorsProxy);
+                }
             }
         }
 
         function stopCamera() {
             if (isRecording) stopRecording();
             isCameraActive = false;
+            jpegSnapshotLoopActive = false;
+            if (jpegLoopTimer) clearTimeout(jpegLoopTimer);
+
             activeTracks = [];
             cachedPredictions = [];
             cachedPersonsData = [];
@@ -1776,10 +2172,20 @@
             cachedBehavior = null;
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             if (inferenceTimer) clearTimeout(inferenceTimer);
+
             if (videoElement.srcObject) {
                 videoElement.srcObject.getTracks().forEach(track => track.stop());
                 videoElement.srcObject = null;
             }
+
+            if (ipCamStream) {
+                ipCamStream.src = '';
+                ipCamStream.classList.add('hidden');
+            }
+            if (videoElement) {
+                videoElement.classList.remove('hidden');
+            }
+
             updateCameraStatusUI(false);
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         }
@@ -1816,7 +2222,7 @@
             if (active) {
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-                statusText.innerText = 'Cámara: Activa';
+                statusText.innerText = currentCameraSource === 'webcam' ? 'Cámara: Activa' : `Cámara IP: Conectada`;
                 placeholder.classList.add('opacity-0', 'pointer-events-none');
                 btnPlayText.innerText = 'Pausar Cámara';
                 videoHud.classList.remove('hidden');
@@ -1920,9 +2326,10 @@
 
         function startDetectionEngine() {
             if (!cocoModel) loadDetectionModel();
-            if (videoElement.videoWidth > 0) {
-                canvasElement.width = videoElement.videoWidth;
-                canvasElement.height = videoElement.videoHeight;
+            const dims = getActiveMediaDimensions();
+            if (dims.w > 0) {
+                canvasElement.width = dims.w;
+                canvasElement.height = dims.h;
             }
             renderLoop();
             scheduleNextInference();
@@ -1933,14 +2340,17 @@
         // 1. RENDER LOOP: Runs at full 60 FPS purely rendering latest cached overlay
         // ==========================================
         function renderLoop() {
-            if (!isCameraActive || !videoElement || videoElement.readyState < 2) {
+            if (!isCameraActive || !isMediaSourceReady()) {
                 if (isCameraActive) animationFrameId = requestAnimationFrame(renderLoop);
                 return;
             }
 
-            if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
-                canvasElement.width = videoElement.videoWidth;
-                canvasElement.height = videoElement.videoHeight;
+            const activeMedia = getActiveMediaElement();
+            const dims = getActiveMediaDimensions();
+
+            if (canvasElement.width !== dims.w || canvasElement.height !== dims.h) {
+                canvasElement.width = dims.w;
+                canvasElement.height = dims.h;
             }
 
             // Expiración inmediata de manos si salieron del rango de visión (>220ms sin detección)
@@ -1980,14 +2390,14 @@
 
             renderComprehensiveOverlay(liveRenderPredictions, liveRenderPersons, cachedBehavior, cachedObjectContexts, cachedHandResults);
 
-            // Composición para grabación de video (Cámara Web Real + Bounding Boxes & HUD de IA a 60 FPS)
+            // Composición para grabación de video (Cámara Web Real o IP + Bounding Boxes & HUD de IA a 60 FPS)
             if (isRecording) {
-                if (recordingCanvas.width !== videoElement.videoWidth || recordingCanvas.height !== videoElement.videoHeight) {
-                    recordingCanvas.width = videoElement.videoWidth;
-                    recordingCanvas.height = videoElement.videoHeight;
+                if (recordingCanvas.width !== dims.w || recordingCanvas.height !== dims.h) {
+                    recordingCanvas.width = dims.w;
+                    recordingCanvas.height = dims.h;
                 }
-                // 1. Dibuja la cámara real en alta definición
-                recordingCtx.drawImage(videoElement, 0, 0, recordingCanvas.width, recordingCanvas.height);
+                // 1. Dibuja la cámara real o flujo IP en alta definición
+                recordingCtx.drawImage(activeMedia, 0, 0, recordingCanvas.width, recordingCanvas.height);
                 // 2. Dibuja las cajas delimitadoras, etiquetas y HUD en tiempo real
                 recordingCtx.drawImage(canvasElement, 0, 0, recordingCanvas.width, recordingCanvas.height);
             }
@@ -2011,8 +2421,9 @@
         // ==========================================
         function scheduleNextHands() {
             if (!isCameraActive) return;
-            if (videoElement && 'requestVideoFrameCallback' in videoElement) {
-                videoElement.requestVideoFrameCallback(() => handsScheduler());
+            const activeMedia = getActiveMediaElement();
+            if (currentCameraSource === 'webcam' && activeMedia && 'requestVideoFrameCallback' in activeMedia) {
+                activeMedia.requestVideoFrameCallback(() => handsScheduler());
             } else {
                 requestAnimationFrame(() => handsScheduler());
             }
@@ -2020,10 +2431,11 @@
 
         async function handsScheduler() {
             if (!isCameraActive) return;
-            if (mediaPipeHands && !isHandsInferring && videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0) {
+            const activeMedia = getActiveMediaElement();
+            if (mediaPipeHands && !isHandsInferring && isMediaSourceReady()) {
                 isHandsInferring = true;
                 try {
-                    await mediaPipeHands.send({ image: videoElement });
+                    await mediaPipeHands.send({ image: activeMedia });
                 } catch (mhErr) {
                     // Hand tracking notice
                 } finally {
@@ -2036,12 +2448,13 @@
         }
 
         // ==========================================
-        // 3. OBJECT & PERSON INFERENCE SCHEDULER (ALTA VELOCIDAD)
+        // 3. OBJECT & PERSON INFERENCE SCHEDULER (ALTA VELOCIDAD Y PRECISIÓN PROFESIONAL)
         // ==========================================
         function scheduleNextInference() {
             if (!isCameraActive) return;
-            if (videoElement && 'requestVideoFrameCallback' in videoElement) {
-                videoElement.requestVideoFrameCallback(() => inferenceScheduler());
+            const activeMedia = getActiveMediaElement();
+            if (currentCameraSource === 'webcam' && activeMedia && 'requestVideoFrameCallback' in activeMedia) {
+                activeMedia.requestVideoFrameCallback(() => inferenceScheduler());
             } else {
                 requestAnimationFrame(() => inferenceScheduler());
             }
@@ -2049,7 +2462,7 @@
 
         async function inferenceScheduler() {
             if (!isCameraActive) return;
-            if (cocoModel && !isInferring && videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0) {
+            if (cocoModel && !isInferring && isMediaSourceReady()) {
                 await runFastInference();
             }
             if (isCameraActive) {
@@ -2057,15 +2470,17 @@
             }
         }
 
-        // 4. FAST DIRECT HARDWARE INFERENCE: Detecta objetos y personas de inmediato en ~25-35ms
+        // 4. FAST DIRECT HARDWARE INFERENCE: Detecta objetos y personas de inmediato en resolución Pro HD
         async function runFastInference() {
             isInferring = true;
             const startTime = performance.now();
 
             try {
-                const vW = videoElement.videoWidth || 640;
-                const vH = videoElement.videoHeight || 480;
-                const targetW = 512;
+                const activeMedia = getActiveMediaElement();
+                const dims = getActiveMediaDimensions();
+                const vW = dims.w || 640;
+                const vH = dims.h || 480;
+                const targetW = inferenceResolution || 640;
                 const targetH = Math.round(targetW * (vH / vW));
 
                 if (inferCanvas.width !== targetW || inferCanvas.height !== targetH) {
@@ -2074,11 +2489,11 @@
                 }
 
                 // Dibujar en buffer acelerado optimizado (copia por hardware < 1ms)
-                inferCtx.drawImage(videoElement, 0, 0, targetW, targetH);
+                inferCtx.drawImage(activeMedia, 0, 0, targetW, targetH);
 
-                // Inferencia ultra veloz sobre el buffer optimizado (evalúa en 25-35ms)
-                const evalConfidence = Math.max(0.35, minConfidence - 0.05);
-                const rawPredictions = await cocoModel.detect(inferCanvas, 20, evalConfidence);
+                // Inferencia profesional: evalConfidence optimizado para capturar objetos pequeños/en mano
+                const evalConfidence = Math.max(0.18, minConfidence - 0.12);
+                const rawPredictions = await cocoModel.detect(inferCanvas, 25, evalConfidence);
 
                 const cW = canvasElement.width || 1280;
                 const cH = canvasElement.height || 720;
@@ -2185,9 +2600,10 @@
 
         function sampleHairTone(x, y, w, h) {
             try {
+                const activeMedia = getActiveMediaElement();
                 offscreenCanvas.width = w;
                 offscreenCanvas.height = h;
-                offscreenCtx.drawImage(videoElement, x, y, w, h, 0, 0, w, h);
+                offscreenCtx.drawImage(activeMedia, x, y, w, h, 0, 0, w, h);
 
                 const imgData = offscreenCtx.getImageData(0, 0, w, h);
                 const data = imgData.data;
@@ -3580,16 +3996,17 @@
                 alert('No tienes el permiso de captura activo. Por favor autorízalo primero en el Centro de Permisos.');
                 return;
             }
-            if (!isCameraActive) {
+            if (!isCameraActive || !isMediaSourceReady()) {
                 alert('La cámara debe estar activa para tomar una captura.');
                 return;
             }
 
+            const activeMedia = getActiveMediaElement();
             const snapCanvas = document.createElement('canvas');
             snapCanvas.width = canvasElement.width;
             snapCanvas.height = canvasElement.height;
             const sCtx = snapCanvas.getContext('2d');
-            sCtx.drawImage(videoElement, 0, 0, snapCanvas.width, snapCanvas.height);
+            sCtx.drawImage(activeMedia, 0, 0, snapCanvas.width, snapCanvas.height);
             sCtx.drawImage(canvasElement, 0, 0, snapCanvas.width, snapCanvas.height);
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -3656,7 +4073,7 @@
                 alert('No tienes el permiso de grabación activo. Por favor autorízalo primero en el Centro de Permisos.');
                 return;
             }
-            if (!isCameraActive) {
+            if (!isCameraActive || !isMediaSourceReady()) {
                 alert('La cámara debe estar activa para poder grabar.');
                 return;
             }
@@ -3670,19 +4087,20 @@
 
         function startRecording() {
             try {
-                if (!videoElement || videoElement.videoWidth === 0) {
-                    alert('Espera a que el video de la cámara esté activo para grabar.');
+                const dims = getActiveMediaDimensions();
+                if (!isMediaSourceReady() || dims.w === 0) {
+                    alert('Espera a que el flujo de la cámara esté activo para grabar.');
                     return;
                 }
 
-                recordingCanvas.width = videoElement.videoWidth;
-                recordingCanvas.height = videoElement.videoHeight;
+                recordingCanvas.width = dims.w;
+                recordingCanvas.height = dims.h;
 
                 // Captura compuesta: cámara real + bounding boxes y HUD en tiempo real
                 const stream = recordingCanvas.captureStream(30);
 
-                // Agregar pista de audio del micrófono si existe en el stream de la cámara
-                if (videoElement.srcObject) {
+                // Agregar pista de audio del micrófono si existe en el stream de la cámara (webcam)
+                if (videoElement && videoElement.srcObject) {
                     const audioTracks = videoElement.srcObject.getAudioTracks();
                     if (audioTracks && audioTracks.length > 0) {
                         stream.addTrack(audioTracks[0]);
