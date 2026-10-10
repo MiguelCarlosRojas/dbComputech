@@ -1002,7 +1002,7 @@
         // Multi-Target Real-Time Tracker (Seguimiento Continuo e Instantáneo de Personas y Objetos)
         let activeTracks = [];
         let nextTrackId = 1;
-        const TRACK_LERP_FACTOR = 0.55; // Desplazamiento ultra suave y continuo a 60 FPS sin saltos
+        const TRACK_LERP_FACTOR = 0.72; // Respuesta instantánea y seguimiento continuo a 60 FPS sin retraso
 
         function computeIoU(boxA, boxB) {
             const xA = Math.max(boxA[0], boxB[0]);
@@ -1029,7 +1029,7 @@
             return Math.hypot(cAx - cBx, cAy - cBy);
         }
 
-        // Filtro estricto de alta precisión que descarta falsas personas y alucinaciones
+        // Filtro profesional de alta precisión que detecta objetos en tiempo real y descarta alucinaciones
         function validateAndFilterPredictions(rawDetections, scaleX, scaleY, canvasW, canvasH) {
             const absurdClasses = ['zebra', 'giraffe', 'bear', 'elephant', 'sheep', 'cow', 'horse', 'airplane', 'train', 'boat', 'fire hydrant', 'stop sign', 'parking meter', 'kite', 'skis', 'snowboard', 'surfboard', 'frisbee'];
             const furnitureClasses = ['chair', 'couch', 'bed', 'backpack', 'tv', 'dining table'];
@@ -1049,21 +1049,31 @@
             const candidatePersons = [];
             const validObjects = [];
 
+            // Categorías de objetos con umbrales calibrados para capturar cualquier elemento del mundo
+            const handheldAndPersonal = [
+                'cell phone', 'cup', 'bottle', 'wine glass', 'fork', 'knife', 'spoon', 'bowl',
+                'apple', 'banana', 'orange', 'broccoli', 'carrot', 'sandwich', 'pizza', 'hot dog', 'donut', 'cake',
+                'book', 'clock', 'scissors', 'teddy bear', 'hair drier', 'toothbrush',
+                'pen', 'glasses', 'watch', 'wallet', 'headphones', 'document', 'remote', 'mouse'
+            ];
+
+            const workAndTech = ['laptop', 'keyboard', 'tv', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'vase', 'potted plant'];
+
             // 2. Filtrado estricto por geometría y umbrales verídicos
             for (const p of scaled) {
                 if (absurdClasses.includes(p.class) && p.score < 0.85) continue;
 
                 const [bx, by, bw, bh] = p.bbox;
-                if (bw < 24 || bh < 24) continue;
+                if (bw < 18 || bh < 18) continue;
                 if (bw > canvasW * 0.98 && bh > canvasH * 0.98) continue;
 
                 if (p.class === 'person') {
                     // FILTRADO ESTRICTO DE PERSONA (Evita confundir personas con objetos/muebles):
                     // a) Umbral de confianza firme: nunca clasificar objetos ambiguos con puntajes bajos como personas
-                    if (p.score < 0.48) continue;
+                    if (p.score < 0.46) continue;
 
                     // b) Altura y área mínimas realistas para una persona en cámara
-                    if (bh < 85 || bw < 45 || (bw * bh) < 6000) continue;
+                    if (bh < 75 || bw < 40 || (bw * bh) < 5000) continue;
 
                     // c) Relación de aspecto: las personas en encuadre son verticales o cuadradas.
                     // Si el ancho es mayor al alto (bw > bh * 1.30) y no tiene confianza altísima, es una mesa/mueble/teclado, NO una persona
@@ -1071,16 +1081,15 @@
 
                     candidatePersons.push(p);
                 } else {
-                    // Detección Profesional de Objetos: Oficina, estudio, cocina, electrónica y pertenencias
-                    const isCommonObject = [
-                        'cell phone', 'cup', 'bottle', 'apple', 'banana', 'orange', 'sandwich', 'pizza',
-                        'laptop', 'mouse', 'keyboard', 'book', 'pen', 'scissors', 'fork', 'knife', 'spoon',
-                        'backpack', 'handbag', 'suitcase', 'wallet', 'glasses', 'watch', 'remote', 'bowl',
-                        'broccoli', 'carrot', 'hot dog', 'donut', 'cake'
-                    ].includes(p.class);
+                    // Calibración adaptativa por tipo de objeto:
+                    // Para objetos en mano, comida, frutas y utensilios: umbral sensible para respuesta inmediata en tiempo real
+                    let objThreshold = minConfidence;
+                    if (handheldAndPersonal.includes(p.class)) {
+                        objThreshold = Math.max(0.18, minConfidence * 0.70);
+                    } else if (workAndTech.includes(p.class)) {
+                        objThreshold = Math.max(0.24, minConfidence * 0.80);
+                    }
 
-                    // Para objetos cotidianos y de mesa: umbral adaptativo profesional (permite captar celulares, tazas, frutas)
-                    const objThreshold = isCommonObject ? Math.max(0.24, minConfidence * 0.78) : minConfidence;
                     if (p.score >= objThreshold) {
                         validObjects.push(p);
                     }
@@ -1089,7 +1098,7 @@
 
             // 3. Resolución de conflicto Persona vs Mueble:
             // Si una persona candidata se superpone fuertemente con una silla/sofá/cama/mochila
-            // y la persona tiene menor o igual certeza (<0.68), es el mueble!
+            // y la persona tiene menor certeza (<0.68), es el mueble!
             const truePersons = candidatePersons.filter(person => {
                 for (const obj of validObjects) {
                     if (furnitureClasses.includes(obj.class)) {
@@ -1116,7 +1125,7 @@
             validObjects.sort((a, b) => b.score - a.score);
             const nmsObjects = [];
             for (const obj of validObjects) {
-                const overlap = nmsObjects.some(existing => existing.class === obj.class && computeIoU(obj.bbox, existing.bbox) > 0.40);
+                const overlap = nmsObjects.some(existing => existing.class === obj.class && computeIoU(obj.bbox, existing.bbox) > 0.38);
                 if (!overlap) {
                     nmsObjects.push(obj);
                 }
@@ -2741,16 +2750,23 @@
                 } else if (count === 1) {
                     if (isThumbOpen) gestureName = 'Pulgar Arriba (1 dedo)';
                     else if (isIndexOpen) gestureName = 'Señalando con Índice (1 dedo)';
+                    else if (isMiddleOpen) gestureName = 'Dedo Medio Extendido (1 dedo)';
+                    else if (isPinkyOpen) gestureName = 'Dedo Meñique Extendido (1 dedo)';
                     else gestureName = '1 Dedo Extendido';
                 } else if (count === 2) {
-                    if (isIndexOpen && isMiddleOpen) gestureName = 'Señal de Paz (2 dedos)';
+                    if (isIndexOpen && isMiddleOpen && !isThumbOpen && !isRingOpen && !isPinkyOpen) gestureName = 'Señal de Paz / Victoria (2 dedos)';
                     else if (isThumbOpen && isIndexOpen) gestureName = 'Gesto L (2 dedos)';
+                    else if (isIndexOpen && isPinkyOpen && !isMiddleOpen && !isRingOpen) gestureName = 'Gesto Rock (2 dedos)';
                     else if (isThumbOpen && isPinkyOpen) gestureName = 'Gesto Shaka (2 dedos)';
                     else gestureName = '2 Dedos Extendidos';
                 } else if (count === 3) {
-                    gestureName = 'Tres Dedos Mostrados (3 dedos)';
+                    if (isThumbOpen && isIndexOpen && isMiddleOpen) gestureName = 'Tres Dedos - Tres (3 dedos)';
+                    else if (isIndexOpen && isMiddleOpen && isRingOpen) gestureName = 'Tres Dedos - W (3 dedos)';
+                    else if (isMiddleOpen && isRingOpen && isPinkyOpen && !isThumbOpen && !isIndexOpen) gestureName = 'Gesto OK (3 dedos)';
+                    else gestureName = '3 Dedos Extendidos';
                 } else if (count === 4) {
-                    gestureName = 'Cuatro Dedos Mostrados (4 dedos)';
+                    if (!isThumbOpen) gestureName = 'Cuatro Dedos - Sin Pulgar (4 dedos)';
+                    else gestureName = 'Cuatro Dedos Mostrados (4 dedos)';
                 } else if (count === 5) {
                     gestureName = 'Palma Abierta (5 dedos)';
                 }
@@ -2839,23 +2855,34 @@
                     for (const person of personsData) {
                         const [px, py, pw, ph] = person.bbox;
                         const inPersonPerimeter = (ocx >= px - pw * 0.35 && ocx <= px + pw * 1.35 && ocy >= py && ocy <= py + ph * 1.15);
-
                         if (inPersonPerimeter) {
                             if (pred.class === 'cell phone') {
                                 ctxTag = (ocy <= py + ph * 0.40) ? 'En oreja • Llamada activa' : 'En mano • Manipulando celular';
                             } else if (fruitClasses.includes(pred.class)) {
-                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando fruta';
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo fruta' : 'En mano • Mostrando fruta';
                             } else if (mealClasses.includes(pred.class)) {
-                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando alimento';
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo alimento' : 'En mano • Mostrando alimento';
                             } else if (utensilClasses.includes(pred.class)) {
                                 ctxTag = 'En mano • Usando cubierto';
                             } else if (pred.class === 'bottle' || pred.class === 'cup' || pred.class === 'wine glass') {
-                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo • Bebiendo' : 'En mano';
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo • Bebiendo' : 'En mano • Sosteniendo bebida';
                             } else if (pred.class === 'laptop' || pred.class === 'keyboard' || pred.class === 'mouse') {
-                                ctxTag = 'En uso activo';
-                            } else if (pred.class === 'book') {
-                                ctxTag = 'En mano • Lectura';
-                            } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase') {
+                                ctxTag = 'En uso activo • Informática';
+                            } else if (pred.class === 'book' || pred.class === 'document') {
+                                ctxTag = 'En mano • Lectura / Estudio';
+                            } else if (pred.class === 'pen') {
+                                ctxTag = 'En mano • Escribiendo';
+                            } else if (pred.class === 'scissors') {
+                                ctxTag = 'En mano • Cortando con tijeras';
+                            } else if (pred.class === 'glasses') {
+                                ctxTag = (ocy <= py + ph * 0.35) ? 'Puesto • Lentes en rostro' : 'En mano • Lentes';
+                            } else if (pred.class === 'headphones') {
+                                ctxTag = (ocy <= py + ph * 0.35) ? 'Puesto • Auriculares en cabeza' : 'En mano • Auriculares';
+                            } else if (pred.class === 'watch') {
+                                ctxTag = 'En muñeca • Reloj pulsera';
+                            } else if (pred.class === 'remote') {
+                                ctxTag = 'En mano • Usando control remoto';
+                            } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase' || pred.class === 'wallet') {
                                 ctxTag = 'Manipulando pertenencia';
                             } else {
                                 ctxTag = 'En mano • Sostenido';
@@ -3190,25 +3217,9 @@
                 };
             }
 
-            // 12. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
-            const heldObjects = predictions.filter(p => !['person', 'chair', 'couch', 'bed', 'dining table'].includes(p.class));
-            for (const obj of heldObjects) {
-                const [ox, oy, ow, oh] = obj.bbox;
-                const ocx = ox + ow / 2;
-                const ocy = oy + oh / 2;
-                if (ocx >= px - pw * 0.25 && ocx <= px + pw * 1.25 && ocy >= py + ph * 0.20 && ocy <= py + ph * 0.90) {
-                    return {
-                        key: 'showing_object',
-                        name: `Mostrando a la Cámara: ${getObjectDisplayName(obj.class)}`,
-                        color: BEHAVIOR_COLOR_MAP['showing_object'] ? BEHAVIOR_COLOR_MAP['showing_object'].color : '#38BDF8',
-                        confidence: 0.93
-                    };
-                }
-            }
-
-            // 13. Conteo Preciso de Dedos y Gestos de Manos con MediaPipe (CUANDO NO SE SOSTIENE UN OBJETO)
+            // 12. Conteo de Dedos y Gestos de Manos con MediaPipe
             if (handResults && handResults.length > 0) {
-                // Chequeo de Manos en la Cabeza
+                // Chequeo de Manos Arriba o en Cabeza
                 if (handResults.length >= 2) {
                     const bothNearHead = handResults.every(h => (h.bbox[1] + h.bbox[3] / 2) <= py + ph * 0.38);
                     const bothAboveHead = handResults.every(h => (h.bbox[1] + h.bbox[3] / 2) < py);
@@ -3241,13 +3252,30 @@
                         color: BEHAVIOR_COLOR_MAP['both_hands'] ? BEHAVIOR_COLOR_MAP['both_hands'].color : '#06B6D4',
                         confidence: 0.96
                     };
-                } else if (handResults.length === 1) {
+                } else if (handResults.length === 1 && handResults[0].count > 0) {
+                    // Si se está mostrando 1 o más dedos de forma deliberada a la cámara
                     const h = handResults[0];
                     return {
                         key: 'hand_fingers',
                         name: `${h.side}: ${h.gesture}`,
                         color: BEHAVIOR_COLOR_MAP['hand_fingers'] ? BEHAVIOR_COLOR_MAP['hand_fingers'].color : '#10B981',
                         confidence: 0.96
+                    };
+                }
+            }
+
+            // 13. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
+            const heldObjects = predictions.filter(p => !['person', 'chair', 'couch', 'bed', 'dining table'].includes(p.class));
+            for (const obj of heldObjects) {
+                const [ox, oy, ow, oh] = obj.bbox;
+                const ocx = ox + ow / 2;
+                const ocy = oy + oh / 2;
+                if (ocx >= px - pw * 0.25 && ocx <= px + pw * 1.25 && ocy >= py + ph * 0.20 && ocy <= py + ph * 0.90) {
+                    return {
+                        key: 'showing_object',
+                        name: `Mostrando a la Cámara: ${getObjectDisplayName(obj.class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_object'] ? BEHAVIOR_COLOR_MAP['showing_object'].color : '#38BDF8',
+                        confidence: 0.93
                     };
                 }
             }
