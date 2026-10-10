@@ -7,7 +7,7 @@ Copyright (c) 2026 Miguel Carlos Rojas. Todos los derechos reservados.
 
 ## 1. Titularidad del Código y Propiedad Intelectual
 
-Todo el código fuente, la arquitectura de software, los algoritmos de seguimiento cinematográfico, la estructura del Entorno Virtual Autónomo de IA, los componentes de interfaz de usuario, los esquemas de bases de datos y la documentación técnica implementados en el proyecto **dbCOMPUTECH** son propiedad intelectual exclusiva de su autor, **Miguel Carlos Rojas**, salvo cuando se indique expresamente lo contrario respecto a librerías y dependencias de terceros.
+Todo el código fuente, la arquitectura de software, los algoritmos de seguimiento cinematográfico, los componentes de interfaz de usuario, los esquemas de bases de datos y la documentación técnica implementados en el proyecto **dbCOMPUTECH** son propiedad intelectual exclusiva de su autor, **Miguel Carlos Rojas**, salvo cuando se indique expresamente lo contrario respecto a librerías y dependencias de terceros.
 
 Queda prohibida la reproducción total o parcial, distribución, ingeniería inversa o explotación comercial de este software sin la autorización expresa y por escrito del titular de los derechos de autor, sujeta a los términos y licencias establecidas en este repositorio.
 

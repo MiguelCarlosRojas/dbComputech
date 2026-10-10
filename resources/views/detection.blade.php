@@ -122,13 +122,8 @@
                 </div>
             </div>
 
-            <!-- Controls: Entorno Virtual, Guía Cromática, Historial BD, Audio: Activo y Toggle de Estado/Permisos -->
+            <!-- Controls: Guía Cromática, Historial BD, Audio: Activo y Toggle de Estado/Permisos -->
             <div class="flex flex-wrap items-center gap-1.5 sm:gap-2.5">
-                <!-- Navigation: Entorno Virtual Autónomo (Modal) -->
-                <x-button variant="secondary" size="xs" id="btnOpenVirtualEnvModal" onclick="openVirtualEnvModal()" icon='<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>'>
-                    <span class="hidden sm:inline">Entorno Virtual</span>
-                    <span class="sm:hidden">Sandbox</span>
-                </x-button>
 
                 <!-- Navigation: Guía Cromática (Left Drawer) -->
                 <x-button variant="secondary" size="xs" id="btnOpenLeftDrawer" onclick="openLeftDrawer()" icon='<svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".75" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".75" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".75" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".75" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2Z"/></svg>'>
@@ -326,10 +321,7 @@
                             <span class="text-xs sm:text-sm font-semibold text-white truncate max-w-[180px] sm:max-w-none">Monitoreo en Vivo</span>
                         </div>
                         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                            <span id="virtualEnvCounter" onclick="openVirtualEnvModal()" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/60 hidden md:inline-flex items-center gap-1 cursor-pointer hover:bg-indigo-900/80 transition" title="Ver Entorno Virtual Autónomo">
-                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-                                <span id="virtualEnvBadgeText">Entorno Virtual: 100% Recursos</span>
-                            </span>
+
                             <span id="hardwareCoresCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/60 hidden sm:inline-flex items-center gap-1">
                                 <svg class="w-3 h-3 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
                                 <span id="hardwareCoresText">Cargando HW...</span>
@@ -985,100 +977,7 @@
 
     </aside>
 
-    <!-- ======================================================= -->
-    <!-- MODAL / PANEL: Entorno Virtual Autónomo de IA (100% Recursos) -->
-    <!-- ======================================================= -->
-    <div id="virtualEnvBackdrop" onclick="closeVirtualEnvModal()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
 
-    <div id="virtualEnvModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 pointer-events-none opacity-0 transition-all duration-300 transform scale-95">
-        <div class="bg-slate-900 border border-indigo-500/40 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl backdrop-blur-xl pointer-events-auto flex flex-col gap-4 glow-accent">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-                        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-                    </div>
-                    <div>
-                        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                            Entorno Virtual Autónomo de IA
-                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono-code">100% Hardware</span>
-                        </h3>
-                        <p class="text-[11px] text-slate-400">Sandbox aislado con multi-hilo en segundo plano y auto-evolución continua</p>
-                    </div>
-                </div>
-                <button type="button" onclick="closeVirtualEnvModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-
-            <!-- Grid de Recursos en Tiempo Real -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <!-- Tarjeta CPU Multi-Core -->
-                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-1.5">
-                    <div class="flex items-center justify-between text-slate-400 font-mono-code text-[11px]">
-                        <span>PROCESAMIENTO CPU</span>
-                        <span class="text-cyan-400 font-bold">100% Dedicado</span>
-                    </div>
-                    <div class="text-base font-bold text-white font-mono-code" id="veCpuThreadsDisplay">Cargando hilos...</div>
-                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1">
-                        <div class="bg-gradient-to-r from-cyan-400 to-indigo-500 h-full rounded-full w-full animate-pulse"></div>
-                    </div>
-                    <span class="text-[10px] text-slate-400">Todos los núcleos físicos y lógicos activos en paralelo.</span>
-                </div>
-
-                <!-- Tarjeta Memoria RAM Virtual -->
-                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-1.5">
-                    <div class="flex items-center justify-between text-slate-400 font-mono-code text-[11px]">
-                        <span>MEMORIA RAM ASIGNADA</span>
-                        <span class="text-indigo-400 font-bold">Buffer Virtual</span>
-                    </div>
-                    <div class="text-base font-bold text-indigo-300 font-mono-code" id="veRamDisplay">Calculando RAM...</div>
-                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1">
-                        <div class="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full w-4/5"></div>
-                    </div>
-                    <span class="text-[10px] text-slate-400">Pool de tensores y arrays tipados en memoria para inferencia rápida.</span>
-                </div>
-
-                <!-- Tarjeta Auto-Evolución y Red -->
-                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-1.5">
-                    <div class="flex items-center justify-between text-slate-400 font-mono-code text-[11px]">
-                        <span>AUTO-EVOLUCIÓN EN RED</span>
-                        <span class="text-emerald-400 font-bold">Autónoma</span>
-                    </div>
-                    <div class="text-base font-bold text-emerald-300 font-mono-code" id="veEvolutionDisplay">Gen 1 • 27 Conceptos</div>
-                    <span class="text-[10px] text-slate-400">Ciclos de enriquecimiento de conocimiento web y refinamiento de pesos.</span>
-                </div>
-
-                <!-- Tarjeta Plataforma & Dispositivo -->
-                <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-1.5">
-                    <div class="flex items-center justify-between text-slate-400 font-mono-code text-[11px]">
-                        <span>COMPATIBILIDAD PLATAFORMA</span>
-                        <span class="text-amber-400 font-bold">Optimizado</span>
-                    </div>
-                    <div class="text-base font-bold text-amber-300 font-mono-code" id="vePlatformDisplay">Detección Automática</div>
-                    <span class="text-[10px] text-slate-400">PC, Mac, Android, iOS y laptops con aceleración hardware.</span>
-                </div>
-            </div>
-
-            <!-- Consola de Telemetría en Vivo del Entorno Virtual -->
-            <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800 font-mono-code text-[11px] text-slate-300 flex flex-col gap-1 max-h-36 overflow-y-auto">
-                <div class="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-800/80 pb-1 flex items-center justify-between">
-                    <span>Registro del Entorno Virtual</span>
-                    <span class="text-cyan-400">Pipeline Activo</span>
-                </div>
-                <div id="veLogTerminal" class="space-y-0.5 text-[10px] text-slate-400">
-                    <div>[Sandbox] Inicializando entorno virtual de tensores...</div>
-                    <div class="text-emerald-400">[Multi-Core] 100% de hilos de hardware vinculados al pipeline.</div>
-                    <div class="text-cyan-400">[Auto-Evolución] Motor adaptativo autónomo en ejecución continua.</div>
-                </div>
-            </div>
-
-            <div class="flex items-center justify-end pt-2 border-t border-slate-800">
-                <x-button variant="primary" size="sm" onclick="closeVirtualEnvModal()">
-                    Aceptar y Continuar Monitoreo
-                </x-button>
-            </div>
-        </div>
-    </div>
 
     <!-- Floating Toast Notification Container (Top Right) -->
     <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
@@ -1506,31 +1405,7 @@
             panel.classList.remove('translate-x-0');
         }
 
-        // ==========================================
-        // ENTORNO VIRTUAL AUTÓNOMO (MODAL & SANDBOX)
-        // ==========================================
-        function openVirtualEnvModal() {
-            const bd = document.getElementById('virtualEnvBackdrop');
-            const modal = document.getElementById('virtualEnvModal');
-            if (!bd || !modal) return;
-            bd.classList.remove('opacity-0', 'pointer-events-none');
-            bd.classList.add('opacity-100');
-            modal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
-            modal.classList.add('opacity-100', 'scale-100');
-            if (window.aiVirtualEnv) {
-                window.aiVirtualEnv.refreshTelemetry();
-            }
-        }
 
-        function closeVirtualEnvModal() {
-            const bd = document.getElementById('virtualEnvBackdrop');
-            const modal = document.getElementById('virtualEnvModal');
-            if (!bd || !modal) return;
-            bd.classList.add('opacity-0', 'pointer-events-none');
-            bd.classList.remove('opacity-100');
-            modal.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-            modal.classList.remove('opacity-100', 'scale-100');
-        }
 
         // ==========================================
         // FILTRADO DINÁMICO DE GUÍA CROMÁTICA
@@ -2367,9 +2242,6 @@
                             this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
                             this.saveToStorage();
                             this.updateEvolutionBadgeUI();
-                            if (window.aiVirtualEnv) {
-                                window.aiVirtualEnv.logTerminal(`[Auto-Aprendizaje Web] Concepto asimilado: "${concept}" - ${data.description}`);
-                            }
                         }
                     }
                 } catch (e) {
@@ -2409,9 +2281,6 @@
                 if (item.occurrences % 20 === 0) {
                     this.saveToStorage();
                     this.updateEvolutionBadgeUI();
-                    if (window.aiVirtualEnv) {
-                        window.aiVirtualEnv.logTerminal(`[Refuerzo de Red] Concepto "${item.name}" reforzado (${item.occurrences} apariciones, Factor: ${boost.toFixed(2)})`);
-                    }
                 }
 
                 const evolvedConfidence = Math.min(1.0, Math.max(rawScore, rawScore * 1.06 + (item.occurrences > 8 ? 0.05 : 0.02)));
@@ -2451,107 +2320,9 @@
                         : 'Visión IA Pro';
                 }
 
-                const veEvo = document.getElementById('veEvolutionDisplay');
-                if (veEvo) {
-                    veEvo.innerText = `Gen ${this.stats.generation} • ${this.stats.learnedConcepts} Conceptos`;
-                }
             }
         }
         const evolutionaryEngine = new EvolutionaryAIEngine();
-
-        // ==========================================
-        // ENTORNO VIRTUAL AUTÓNOMO Y GESTIÓN DE RECURSOS (100% HARDWARE)
-        // ==========================================
-        class AIVirtualEnvironment {
-            constructor(engine) {
-                this.engine = engine;
-                this.cpuCores = navigator.hardwareConcurrency || 4;
-                this.platformInfo = this.detectPlatform();
-                this.tensorBufferPool = null;
-                this.ramUsageMb = 0;
-                this.initTensorBufferPool();
-                this.initTelemetry();
-                this.startAutonomousResourceWorker();
-            }
-
-            detectPlatform() {
-                const ua = navigator.userAgent || '';
-                let os = 'Dispositivo';
-                if (/windows/i.test(ua)) os = 'PC Windows';
-                else if (/macintosh|mac os x/i.test(ua)) os = 'Mac Apple';
-                else if (/android/i.test(ua)) os = 'Android';
-                else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS Apple';
-                else if (/linux/i.test(ua)) os = 'Linux OS';
-
-                const isMobile = /mobile|android|iphone|ipad|phone/i.test(ua);
-                const type = isMobile ? 'Móvil / Tablet' : 'Escritorio / Laptop';
-                return `${os} (${type})`;
-            }
-
-            initTensorBufferPool() {
-                try {
-                    // Reserva de pool de tensores virtuales (Float32Array) para aceleración en memoria RAM
-                    const elements = 1024 * 1024 * 2; // ~8 MB inicial
-                    this.tensorBufferPool = new Float32Array(elements);
-                } catch (e) {
-                    console.warn('Virtual buffer pool notice:', e);
-                }
-            }
-
-            calculateMemoryUsage() {
-                if (window.performance && window.performance.memory) {
-                    const used = window.performance.memory.usedJSHeapSize;
-                    return Math.round(used / (1024 * 1024));
-                }
-                return Math.round(52 + (this.cpuCores * 6));
-            }
-
-            initTelemetry() {
-                this.refreshTelemetry();
-                this.logTerminal(`[Sandbox] Entorno virtual aislado iniciado en ${this.platformInfo}`);
-                this.logTerminal(`[Multi-Core] ${this.cpuCores} núcleos lógicos enlazados al pipeline de inferencia.`);
-                this.logTerminal(`[TensorPool] Buffer de memoria RAM reservado y activo.`);
-            }
-
-            refreshTelemetry() {
-                const cpuEl = document.getElementById('veCpuThreadsDisplay');
-                if (cpuEl) cpuEl.innerText = `${this.cpuCores} Hilos (${this.cpuCores * 100}% Rendimiento)`;
-
-                this.ramUsageMb = this.calculateMemoryUsage();
-                const ramEl = document.getElementById('veRamDisplay');
-                if (ramEl) ramEl.innerText = `${this.ramUsageMb} MB (Buffer Virtual Activo)`;
-
-                const platEl = document.getElementById('vePlatformDisplay');
-                if (platEl) platEl.innerText = this.platformInfo;
-
-                const evoEl = document.getElementById('veEvolutionDisplay');
-                if (evoEl && this.engine) {
-                    evoEl.innerText = `Gen ${this.engine.stats.generation} • ${this.engine.stats.learnedConcepts} Conceptos`;
-                }
-
-                const badgeText = document.getElementById('virtualEnvBadgeText');
-                if (badgeText) {
-                    badgeText.innerText = `Entorno Virtual: 100% (${this.cpuCores} Hilos)`;
-                }
-            }
-
-            logTerminal(msg) {
-                const term = document.getElementById('veLogTerminal');
-                if (!term) return;
-                const div = document.createElement('div');
-                const time = new Date().toLocaleTimeString('es-ES', { hour12: false });
-                div.innerHTML = `<span class="text-slate-500">[${time}]</span> ${msg}`;
-                term.appendChild(div);
-                term.scrollTop = term.scrollHeight;
-            }
-
-            startAutonomousResourceWorker() {
-                setInterval(() => {
-                    this.refreshTelemetry();
-                }, 5000);
-            }
-        }
-        window.aiVirtualEnv = new AIVirtualEnvironment(evolutionaryEngine);
 
         function setInferenceMode(res) {
             inferenceResolution = res;
@@ -5225,9 +4996,6 @@
             const hwText = document.getElementById('hardwareCoresText');
             if (hwText) {
                 hwText.innerText = `${cores} Hilos CPU • 100% Recursos`;
-            }
-            if (window.aiVirtualEnv) {
-                window.aiVirtualEnv.refreshTelemetry();
             }
             initWebSocket();
             loadDetectionModel();

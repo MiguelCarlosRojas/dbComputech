@@ -10,7 +10,7 @@
 [![Tests](https://img.shields.io/badge/Tests-17%2F17_Passed_(605_assertions)-10B981?style=for-the-badge&logo=githubactions&logoColor=white)](#pruebas-automatizadas)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./COPYRIGHT.md)
 
-Plataforma integral de **visión artificial en tiempo real**, detección multi-objetivo, seguimiento de cuerpo completo, reconocimiento de gestos de manos, análisis de tono capilar y auditoría forense desarrollada en **Laravel 11 puro** con arquitectura reactiva sobre **WebSockets (Laravel Reverb)**, inferencia local de alta fidelidad con **TensorFlow.js** y **Google MediaPipe**, motor de **IA Auto-Evolutiva 24/7**, y un **Entorno Virtual Autónomo** que aprovecha el 100% de los recursos de hardware (CPU multi-núcleo y pool de memoria RAM para tensores) en PC, Mac, laptops, Android e iOS.
+Plataforma integral de **visión artificial en tiempo real**, detección multi-objetivo, seguimiento de cuerpo completo, reconocimiento de gestos de manos, análisis de tono capilar y auditoría forense desarrollada en **Laravel 11 puro** con arquitectura reactiva sobre **WebSockets (Laravel Reverb)**, inferencia local de alta fidelidad con **TensorFlow.js** y **Google MediaPipe**, y motor de **IA Auto-Evolutiva 24/7** con aceleración por hardware en PC, Mac, laptops, Android e iOS.
 
 ---
 
@@ -19,13 +19,12 @@ Plataforma integral de **visión artificial en tiempo real**, detección multi-o
 1. [Descripción General](#descripción-general)
 2. [Arquitectura del Sistema](#arquitectura-del-sistema)
 3. [Características Principales](#características-principales)
-4. [Entorno Virtual Autónomo (100% Recursos)](#entorno-virtual-autónomo-100-recursos)
-5. [Guía Cromática de Identificación](#guía-cromática-de-identificación)
-6. [Requisitos del Sistema](#requisitos-del-sistema)
-7. [Instalación y Puesta en Marcha](#instalación-y-puesta-en-marcha)
-8. [Pruebas Automatizadas](#pruebas-automatizadas)
-9. [Estructura del Proyecto](#estructura-del-proyecto)
-10. [Código de Conducta y Derechos de Autor](#código-de-conducta-y-derechos-de-autor)
+4. [Guía Cromática de Identificación](#guía-cromática-de-identificación)
+5. [Requisitos del Sistema](#requisitos-del-sistema)
+6. [Instalación y Puesta en Marcha](#instalación-y-puesta-en-marcha)
+7. [Pruebas Automatizadas](#pruebas-automatizadas)
+8. [Estructura del Proyecto](#estructura-del-proyecto)
+9. [Código de Conducta y Derechos de Autor](#código-de-conducta-y-derechos-de-autor)
 
 ---
 
@@ -36,11 +35,10 @@ Plataforma integral de **visión artificial en tiempo real**, detección multi-o
 ```mermaid
 graph TD
     subgraph Cliente ["Navegador / Dispositivo (PC, Mac, Android, iOS)"]
-        CAM["Cámara Web / WebRTC"] --> VENV["Entorno Virtual Autónomo (Multi-Core CPU + Tensor Buffer)"]
-        VENV --> TF["TensorFlow.js (COCO-SSD 80 Clases)"]
-        VENV --> MP_POSE["MediaPipe Pose (33 Puntos Anatómicos)"]
-        VENV --> MP_HANDS["MediaPipe Hands (Gestos y Conteo de Dedos)"]
-        VENV --> EVO["Motor de Auto-Evolución (Taxonomía Web Adaptativa)"]
+        CAM["Cámara Web / WebRTC"] --> TF["TensorFlow.js (COCO-SSD 80 Clases)"]
+        CAM --> MP_POSE["MediaPipe Pose (33 Puntos Anatómicos)"]
+        CAM --> MP_HANDS["MediaPipe Hands (Gestos y Conteo de Dedos)"]
+        CAM --> EVO["Motor de Auto-Evolución (Taxonomía Web Adaptativa)"]
         TF & MP_POSE & MP_HANDS --> HUD["HUD de Visión & Retículas LERP a 60 FPS"]
         TF & MP_POSE & MP_HANDS --> PUSHER["Pusher JS Client"]
     end
@@ -56,7 +54,6 @@ graph TD
         REVERB --> FEED["Notificaciones en Vivo (7 visibles + Scroll Infinito)"]
         DB --> DRAWER_R["Panel de Auditoría Forense (Paginación 15/pág)"]
         CONTROLLER --> DRAWER_L["Guía Cromática Lateral (11 Categorías)"]
-        VENV --> MODAL_V["Modal de Telemetría del Sandbox Virtual"]
     end
 ```
 
@@ -116,16 +113,6 @@ graph TD
 * Todos los indicadores, métricas, botones, toasts y alertas utilizan iconos vectoriales SVG de alta definición (Lucide / Heroicons).
 * Estricta ausencia de caracteres emoji en vistas, controladores y documentación.
 
----
-
-## Entorno Virtual Autónomo (100% Recursos)
-
-El sistema incorpora un entorno de ejecución virtual (`AIVirtualEnvironment`) diseñado para aprovechar al máximo las capacidades del hardware del cliente:
-
-* **Multi-Procesamiento CPU al 100%**: Detecta los núcleos físicos y lógicos disponibles mediante `navigator.hardwareConcurrency` y los enlaza al flujo de inferencia.
-* **Pool Virtual de Tensores en Memoria RAM**: Reserva buffers tipados en memoria (`Float32Array`) para acelerar la computación de tensores sin latencia de asignación.
-* **Motor de Auto-Evolución Continua 24/7**: La IA enriquece su taxonomía base (Gen 1 • 27 conceptos) mediante ciclos autónomos de consulta y asimilación de conocimiento web, adaptando sus factores de confianza según las detecciones en tiempo real.
-* **Consola de Telemetría**: Modal interactivo accesible desde la barra superior que expone en tiempo real el estado de los hilos de CPU, el uso de memoria RAM del buffer, el nivel evolutivo y el terminal de eventos del sandbox.
 
 ---
 
