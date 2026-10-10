@@ -391,9 +391,9 @@
                         <!-- Sensitivity / Distance Precision Slider -->
                         <div class="flex items-center gap-2 text-xs text-slate-300 w-full sm:w-auto justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
                             <label class="flex items-center gap-2 cursor-pointer w-full sm:w-auto justify-between sm:justify-start">
-                                <span class="text-slate-400 text-[11px] font-semibold uppercase">Sensibilidad / Distancia:</span>
-                                <input id="confidenceThreshold" type="range" min="10" max="75" value="16" oninput="updateConfidence(this.value)" class="w-24 sm:w-32 accent-cyan-400 cursor-pointer">
-                                <span id="confidenceValue" class="font-mono-code text-cyan-400 text-xs font-bold whitespace-nowrap">16% (Alta/Lejana)</span>
+                                <span class="text-slate-400 text-[11px] font-semibold uppercase">Precisión / Filtrado:</span>
+                                <input id="confidenceThreshold" type="range" min="20" max="85" value="40" oninput="updateConfidence(this.value)" class="w-24 sm:w-32 accent-cyan-400 cursor-pointer">
+                                <span id="confidenceValue" class="font-mono-code text-cyan-400 text-xs font-bold whitespace-nowrap">40% (Precisión Óptima)</span>
                             </label>
                         </div>
                     </div>
@@ -846,12 +846,6 @@
         }
 
         function updateObjectTracks(newPredictions) {
-            // Si la IA no detecta nada en este frame, limpiar de inmediato para información 100% en tiempo real
-            if (!newPredictions || newPredictions.length === 0) {
-                activeTracks = [];
-                return;
-            }
-
             const matchedDetections = new Set();
 
             // 1. Asignar detecciones a tracks existentes por clase, proximidad espacial e IoU
@@ -870,11 +864,13 @@
                     const normDist = dist / maxDim;
 
                     let score = iou;
-                    if (normDist < 1.5) {
-                        score = Math.max(score, 0.50 - (normDist * 0.25));
+                    // Para personas: permitir amplio rango espacial continuo sin perder al usuario
+                    const maxDistThreshold = (track.class === 'person') ? 2.5 : 1.5;
+                    if (normDist < maxDistThreshold) {
+                        score = Math.max(score, 0.55 - (normDist * 0.20));
                     }
 
-                    if (score > 0.10 && score > bestMatchScore) {
+                    if (score > 0.08 && score > bestMatchScore) {
                         bestMatchScore = score;
                         bestMatchIndex = i;
                     }
@@ -884,18 +880,18 @@
                     const pred = newPredictions[bestMatchIndex];
                     matchedDetections.add(bestMatchIndex);
 
-                    // Reacción instantánea: si hay salto rápido, ajustar directamente la posición
+                    // Reacción reactiva: si hay salto rápido, ajustar inmediatamente
                     const jumpDist = getCentroidDistance(track.bbox, pred.bbox);
-                    if (jumpDist > 90) {
+                    if (jumpDist > 120) {
                         track.bbox = [...pred.bbox];
                     }
 
                     track.targetBbox = [...pred.bbox];
-                    track.score = pred.score;
+                    track.score = Math.max(track.score * 0.2 + pred.score * 0.8, pred.score);
                     track.missedCycles = 0;
                     track.lastSeen = performance.now();
                 } else {
-                    // Marcar como perdido en este frame
+                    // Incrementar ciclos sin detección
                     track.missedCycles = (track.missedCycles || 0) + 1;
                 }
             }
@@ -919,8 +915,13 @@
                 }
             }
 
-            // 3. Purga estricta en tiempo real: eliminar cualquier objeto ausente (tolerancia 1 ciclo para evitar parpadeo)
-            activeTracks = activeTracks.filter(t => (t.missedCycles || 0) <= 1);
+            // 3. Purga diferenciada 24/7:
+            // Para 'person': tolerancia de hasta 15 ciclos (~500ms) para que JAMÁS se pierda a la persona si se mueve o parpadea
+            // Para 'objects': tolerancia de 4 ciclos (~120ms) para respuesta rápida sin persistencia falsa
+            activeTracks = activeTracks.filter(t => {
+                if (t.class === 'person') return (t.missedCycles || 0) <= 15;
+                return (t.missedCycles || 0) <= 4;
+            });
         }
 
         // High-Precision Panoramic AI Inference Canvas
@@ -951,7 +952,7 @@
         let fps = 0;
         let wsEventsCount = {{ $stats['total'] }};
         let sessionEventsCount = 0;
-        let minConfidence = 0.15;
+        let minConfidence = 0.40;
 
         // Tracking state
         let previousPersons = [];
@@ -1585,7 +1586,8 @@
                 const targetDeviceId = preferredDeviceId || activeCameraDeviceId;
                 const videoConstraints = {
                     width: { ideal: 1280, min: 640 },
-                    height: { ideal: 720, min: 480 }
+                    height: { ideal: 720, min: 480 },
+                    frameRate: { ideal: 60, min: 30 }
                 };
 
                 if (targetDeviceId) {
@@ -1740,7 +1742,7 @@
 
         function updateConfidence(val) {
             minConfidence = val / 100;
-            const label = val <= 18 ? `${val}% (Alta/Lejana)` : (val <= 30 ? `${val}% (Media)` : `${val}%`);
+            const label = val <= 30 ? `${val}% (Permisiva)` : (val <= 50 ? `${val}% (Precisión Óptima)` : `${val}% (Ultra Estricta)`);
             document.getElementById('confidenceValue').innerText = label;
         }
 
@@ -1800,8 +1802,8 @@
                 }
                 
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
-                badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400';
-                text.innerText = 'IA: Alta Precisión (Tiempo Real)';
+                badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                text.innerText = 'IA: Monitoreo 24/7 (Alta Precisión)';
             } catch (e) {
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-rose-400';
@@ -1938,8 +1940,9 @@
             try {
                 // Inferencia por aceleración de hardware directa sobre el video
                 let rawPredictions = [];
+                const evalConfidence = Math.max(0.28, minConfidence - 0.08);
                 try {
-                    rawPredictions = await cocoModel.detect(videoElement, 35, minConfidence);
+                    rawPredictions = await cocoModel.detect(videoElement, 35, evalConfidence);
                 } catch (vErr) {
                     // Respaldo de alta velocidad si el controlador requiere canvas
                     const vW = videoElement.videoWidth || 640;
@@ -1951,15 +1954,38 @@
                         inferCanvas.height = targetH;
                     }
                     inferCtx.drawImage(videoElement, 0, 0, inferCanvas.width, inferCanvas.height);
-                    rawPredictions = await cocoModel.detect(inferCanvas, 35, minConfidence);
+                    rawPredictions = await cocoModel.detect(inferCanvas, 35, evalConfidence);
                 }
 
+                // Filtrado semántico estricto para eliminar información falsa, ruido y alucinaciones
+                const absurdClasses = ['zebra', 'giraffe', 'bear', 'elephant', 'sheep', 'cow', 'airplane', 'train', 'boat', 'fire hydrant', 'stop sign', 'parking meter', 'kite', 'skis', 'snowboard', 'surfboard', 'frisbee'];
+                const cW = canvasElement.width || 1280;
+                const cH = canvasElement.height || 720;
+
+                const validPredictions = rawPredictions.filter(p => {
+                    // 1. Descartar clases absurdas al aire libre si la confianza no es extrema (>85%)
+                    if (absurdClasses.includes(p.class) && p.score < 0.85) return false;
+
+                    // 2. Descartar cajas diminutas o artefactos de ruido menores a 22px
+                    const [bx, by, bw, bh] = p.bbox;
+                    if (bw < 22 || bh < 22) return false;
+                    if (bw > cW * 0.98 && bh > cH * 0.98 && p.class !== 'person') return false;
+
+                    // 3. Para personas: umbral adaptativo para seguimiento ininterrumpido sin perder al usuario
+                    if (p.class === 'person') {
+                        return p.score >= Math.max(0.30, minConfidence - 0.10);
+                    }
+
+                    // 4. Para objetos de entorno: exigir confianza estricta para garantizar 100% veracidad
+                    return p.score >= minConfidence;
+                });
+
                 // Normalización de escala según coordenadas del lienzo
-                let scaled = rawPredictions;
-                if (inferCanvas.width > 0 && rawPredictions.length > 0 && rawPredictions[0].bbox[0] <= inferCanvas.width && inferCanvas.width !== canvasElement.width) {
+                let scaled = validPredictions;
+                if (inferCanvas.width > 0 && validPredictions.length > 0 && validPredictions[0].bbox[0] <= inferCanvas.width && inferCanvas.width !== canvasElement.width) {
                     const scaleX = canvasElement.width / inferCanvas.width;
                     const scaleY = canvasElement.height / inferCanvas.height;
-                    scaled = rawPredictions.map(p => ({
+                    scaled = validPredictions.map(p => ({
                         class: p.class,
                         score: p.score,
                         bbox: [
@@ -1971,12 +1997,15 @@
                     }));
                 }
 
-                // Actualizar el motor de seguimiento multi-objetivo continuo
+                // Actualizar el motor de seguimiento multi-objetivo continuo 24/7
                 updateObjectTracks(scaled);
 
-                // Proyectar ÚNICAMENTE los tracks activos en este instante (sin fantasmas ni retrasos)
+                // Proyectar tracks activos de forma continua (las personas no se pierden ante micro-parpadeos)
                 const trackedPredictions = activeTracks
-                    .filter(t => (t.missedCycles || 0) === 0)
+                    .filter(t => {
+                        if (t.class === 'person') return (t.missedCycles || 0) <= 12;
+                        return (t.missedCycles || 0) <= 2;
+                    })
                     .map(t => ({
                         id: t.id,
                         class: t.class,
@@ -2007,6 +2036,32 @@
                 isInferring = false;
             }
         }
+
+        // ==========================================
+        // 24/7 SYSTEM WATCHDOG & SELF-HEALING ENGINE
+        // Monitorea la continuidad ininterrumpida y autorecupera el flujo si el navegador estrangula la pestaña
+        // ==========================================
+        setInterval(() => {
+            if (!isCameraActive) return;
+
+            const now = performance.now();
+            // Autorecuperación si el bucle visual se congeló por más de 1800ms
+            if (now - lastFrameTime > 1800) {
+                lastFrameTime = now;
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                renderLoop();
+                scheduleNextInference();
+                scheduleNextHands();
+            }
+
+            // Purgar marcas de tiempo viejas (>60s) para garantizar cero fugas de memoria en 24/7
+            const cutoff = now - 60000;
+            for (const key in lastEventSentTimestamps) {
+                if (lastEventSentTimestamps[key] < cutoff) {
+                    delete lastEventSentTimestamps[key];
+                }
+            }
+        }, 1500);
 
         // ==========================================
         // HAIR COLOR ANALYSIS (THROTTLED SAMPLING CON SEGUIMIENTO)
