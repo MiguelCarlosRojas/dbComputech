@@ -1,15 +1,16 @@
-# dbComputech
+# dbCOMPUTECH
 
 [![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![Laravel Reverb](https://img.shields.io/badge/WebSockets-Laravel_Reverb-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://reverb.laravel.com)
 [![TensorFlow.js](https://img.shields.io/badge/IA_Vision-TensorFlow.js-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://www.tensorflow.org/js)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose_%26_Hands-00897B?style=for-the-badge&logo=google&logoColor=white)](https://developers.google.com/mediapipe)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
-[![Tests](https://img.shields.io/badge/Tests-7%2F7_Passed-10B981?style=for-the-badge&logo=githubactions&logoColor=white)](#pruebas-automatizadas)
+[![Tests](https://img.shields.io/badge/Tests-18%2F18_Passed_(606_assertions)-10B981?style=for-the-badge&logo=githubactions&logoColor=white)](#pruebas-automatizadas)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./COPYRIGHT.md)
 
-Plataforma integral de **visión artificial en tiempo real**, análisis de comportamiento humano, detección de entorno y auditoría forense desarrollada en **Laravel 11 puro** con arquitectura reactiva sobre **WebSockets (Laravel Reverb)**, modelos de inferencia local en navegador con **TensorFlow.js**, interfaz de alta precisión sin emojis, y diseño responsivo adaptativo para PC, laptop, tablet y móvil.
+Plataforma integral de **visión artificial en tiempo real**, detección multi-objetivo, seguimiento de cuerpo completo, reconocimiento de gestos de manos, análisis de tono capilar y auditoría forense desarrollada en **Laravel 11 puro** con arquitectura reactiva sobre **WebSockets (Laravel Reverb)**, inferencia local de alta fidelidad con **TensorFlow.js** y **Google MediaPipe**, motor de **IA Auto-Evolutiva 24/7**, y un **Entorno Virtual Autónomo** que aprovecha el 100% de los recursos de hardware (CPU multi-núcleo y pool de memoria RAM para tensores) en PC, Mac, laptops, Android e iOS.
 
 ---
 
@@ -18,39 +19,44 @@ Plataforma integral de **visión artificial en tiempo real**, análisis de compo
 1. [Descripción General](#descripción-general)
 2. [Arquitectura del Sistema](#arquitectura-del-sistema)
 3. [Características Principales](#características-principales)
-4. [Guía Cromática de Identificación](#guía-cromática-de-identificación)
-5. [Requisitos del Sistema](#requisitos-del-sistema)
-6. [Instalación y Puesta en Marcha](#instalación-y-puesta-en-marcha)
-7. [Pruebas Automatizadas](#pruebas-automatizadas)
-8. [Estructura del Proyecto](#estructura-del-proyecto)
-9. [Código de Conducta y Derechos de Autor](#código-de-conducta-y-derechos-de-autor)
+4. [Entorno Virtual Autónomo (100% Recursos)](#entorno-virtual-autónomo-100-recursos)
+5. [Guía Cromática de Identificación](#guía-cromática-de-identificación)
+6. [Requisitos del Sistema](#requisitos-del-sistema)
+7. [Instalación y Puesta en Marcha](#instalación-y-puesta-en-marcha)
+8. [Pruebas Automatizadas](#pruebas-automatizadas)
+9. [Estructura del Proyecto](#estructura-del-proyecto)
+10. [Código de Conducta y Derechos de Autor](#código-de-conducta-y-derechos-de-autor)
 
 ---
 
 ## Descripción General
 
-**dbComputech** transforma cualquier cámara web estándar en una estación de telemetría y reconocimiento perimetral. A diferencia de soluciones tradicionales dependientes de servidores de video pesado, la inferencia de inteligencia artificial se ejecuta localmente en la GPU/WebGL del cliente a 60 FPS sin saturar la red, transmitiendo exclusivamente cargas útiles estructuradas hacia Laravel a través de WebSockets de latencia ultrabaja.
+**dbCOMPUTECH** transforma cualquier flujo de cámara web estándar en una estación avanzada de telemetría y reconocimiento perimetral. A diferencia de soluciones tradicionales dependientes de servidores de procesamiento de video masivo, la inferencia de inteligencia artificial se ejecuta localmente en el cliente a 60 FPS mediante aceleración por hardware (WebGL / multi-hilo CPU), transmitiendo de manera bidireccional únicamente eventos estructurados hacia Laravel a través de WebSockets de latencia ultra baja.
 
 ```mermaid
-graph LR
-    subgraph Cliente ["Navegador Web / Cliente"]
-        CAM["Cámara Web / WebRTC"] --> TF["TensorFlow.js (COCO-SSD)"]
-        TF --> ENGINE["Motor de Reglas y Gestos"]
-        ENGINE --> PUSHER["Pusher JS Client"]
-        ENGINE --> HUD["HUD & Canvas 60 FPS"]
+graph TD
+    subgraph Cliente ["Navegador / Dispositivo (PC, Mac, Android, iOS)"]
+        CAM["Cámara Web / WebRTC"] --> VENV["Entorno Virtual Autónomo (Multi-Core CPU + Tensor Buffer)"]
+        VENV --> TF["TensorFlow.js (COCO-SSD 80 Clases)"]
+        VENV --> MP_POSE["MediaPipe Pose (33 Puntos Anatómicos)"]
+        VENV --> MP_HANDS["MediaPipe Hands (Gestos y Conteo de Dedos)"]
+        VENV --> EVO["Motor de Auto-Evolución (Taxonomía Web Adaptativa)"]
+        TF & MP_POSE & MP_HANDS --> HUD["HUD de Visión & Retículas LERP a 60 FPS"]
+        TF & MP_POSE & MP_HANDS --> PUSHER["Pusher JS Client"]
     end
 
-    subgraph Backend ["Servidor Laravel"]
-        PUSHER --> REVERB["Laravel Reverb (Puerto 8080)"]
+    subgraph Backend ["Servidor Laravel 11"]
+        PUSHER --> REVERB["Laravel Reverb WebSocket (Puerto 8080)"]
         REVERB --> EVENT["DetectionDetected Event"]
         EVENT --> CONTROLLER["DetectionController"]
         CONTROLLER --> DB[("Base de Datos SQLite")]
     end
 
     subgraph Interfaz ["Paneles Interactivos"]
-        REVERB --> FEED["Notificaciones en Vivo (7 registros + Scroll Infinito)"]
-        DB --> DRAWER_R["Panel Auditoría (Paginación 15/pág)"]
-        CONTROLLER --> DRAWER_L["Guía Cromática Lateral"]
+        REVERB --> FEED["Notificaciones en Vivo (7 visibles + Scroll Infinito)"]
+        DB --> DRAWER_R["Panel de Auditoría Forense (Paginación 15/pág)"]
+        CONTROLLER --> DRAWER_L["Guía Cromática Lateral (11 Categorías)"]
+        VENV --> MODAL_V["Modal de Telemetría del Sandbox Virtual"]
     end
 ```
 
@@ -58,18 +64,26 @@ graph LR
 
 ## Características Principales
 
-### 1. Detección y Seguimiento Continuo Multi-Objetivo (80 Clases COCO-SSD)
-* Reconocimiento y etiquetado en tiempo real en español: personas, celulares, laptops, monitores, sillas, mesas, botellas, tazas, libros, mochilas, teclados, mouse, etc.
-* **Motor de Seguimiento Cinematográfico (Multi-Target Tracking)**: Algoritmo de correspondencia por IoU y proximidad centroide que sigue activamente a personas y objetos a medida que se mueven por el espacio.
-* **Interpolación Fluida a 60 FPS (LERP)**: Las cajas delimitadoras y retículas de objetivo (*target lock*) se desplazan suavemente acompañando la trayectoria del sujeto u objeto sin saltos ni parpadeos.
-* **Persistencia de Detección**: Mantiene el bloqueo del objetivo aun si la inferencia de IA pierde temporalmente algunos cuadros por oclusión o movimiento rápido.
+### 1. Detección y Seguimiento Continuo Multi-Objetivo (COCO-SSD)
+* Reconocimiento y etiquetado en tiempo real en español: personas, celulares, computadoras portátiles, monitores, sillas, mesas, botellas, tazas, libros, mochilas, teclados, mouse, etc.
+* **Seguimiento Cinematográfico (Multi-Target Tracking)**: Algoritmo de correspondencia por IoU y proximidad centroide que realiza seguimiento persistente de objetivos en movimiento.
+* **Interpolación Fluida a 60 FPS (LERP)**: Retículas de bloqueo dinámico (*target lock*) que acompañan la trayectoria del sujeto sin saltos bruscos.
 
-### 2. Detección Multi-Persona, Identidad Persistente y Comportamiento Grupal
-* Seguimiento de presencia individual con identificadores persistentes (Persona #1, Persona #2...) y conteo en tiempo real.
-* Detección de interacción grupal cuando dos o más individuos entran en el encuadre.
+### 2. Detección de Cuerpo Completo (Google MediaPipe Pose)
+* Mapeo tridimensional de 33 puntos de referencia anatómicos corporales.
+* Clasificación en vivo de posturas: de pie, sentado, brazos alzados, un brazo arriba y alertas de caída corporal (*person fallen*).
 
-### 3. Muestreo Cromático de Cabello Humano (Pixel RGB/HSL)
-* Algoritmo de visión que evalúa la región superior de la cabeza mediante muestreo de píxeles:
+### 3. Reconocimiento de Gestos de Manos (Google MediaPipe Hands)
+* Detección biomecánica de articulaciones en ambas manos.
+* Conteo dinámico y preciso de dedos visibles (1 a 5 dedos por mano).
+* Clasificación de gestos: pulgar arriba (*thumbs up*), saludo con la mano (*waving*), manos arriba, manos en el rostro y postura de concentración o pensamiento.
+
+### 4. Detección y Seguimiento Biológico de Animales
+* Reconocimiento especializado de animales domésticos y de entorno (perros, gatos, aves, caballos, ganado).
+* Bloqueo de seguimiento de cuerpo completo adaptado para mascotas y fauna.
+
+### 5. Muestreo Cromático Biométrico de Cabello Humano
+* Algoritmo de visión que evalúa la región cefálica superior mediante análisis de píxeles en espacio de color RGB y HSL:
   * Cabello Negro / Ébano (`#1E293B`)
   * Cabello Castaño Oscuro (`#78350F`)
   * Cabello Castaño Claro (`#B45309`)
@@ -77,63 +91,59 @@ graph LR
   * Cabello Rojizo / Cobrizo (`#DC2626`)
   * Cabello Canoso / Plateado (`#94A3B8`)
 
-### 4. Reconocimiento de Gestos y Actividad
-* Detección de celular al oído (hablando por teléfono).
-* Postura de alerta o brazos arriba (*hands up*).
-* Gesto de saludo con la mano (*waving*).
-* Interacción laboral con laptop o computadora.
+### 6. Conmutación Inteligente de Cámaras por Hardware
+* Enumeración dinámica de hardware de video mediante `navigator.mediaDevices.enumerateDevices()`.
+* **Regla estricta**: Si el dispositivo posee 1 o ninguna cámara física, el selector permanece oculto.
+* Si se detectan 2 o más cámaras, se despliega un selector interactivo que lista los nombres reales de los periféricos y conmuta la transmisión en caliente.
+* Escucha reactiva del evento `devicechange` ante conexiones o desconexiones físicas de dispositivos USB.
 
-### 5. Botón Inteligente de Cambio de Cámara por Hardware
-* Detección dinámica de hardware de video mediante `navigator.mediaDevices.enumerateDevices()`.
-* **Regla estricta**: Si el dispositivo cuenta con 0 o 1 cámara, el botón permanece **oculto**.
-* Si se conectan 2 o más cámaras, el botón aparece con un menú interactivo desplegable que lista cada cámara por su nombre real y conmuta la transmisión en caliente.
-* Escucha reactiva del evento `devicechange` para detectar conexión o desconexión física de cámaras USB.
-
-### 6. Notificaciones en Vivo con Scroll Infinito y Esqueleto
-* Transmisión bidireccional instantánea mediante **Laravel Reverb**.
+### 7. Notificaciones en Vivo con Scroll Infinito y Esqueleto
+* Sincronización instantánea mediante **Laravel Reverb**.
 * Contenedor ajustado a **exactamente 7 registros visibles**.
-* Scroll infinito por lotes que activa una animación de esqueleto (*Skeleton Loader*) sin sobrecargar el servidor ni descargar registros de golpe.
-* El esqueleto permanece estrictamente oculto cuando el feed se encuentra en estado vacío.
+* Scroll infinito por lotes que activa una animación de esqueleto (*Skeleton Loader*) sin sobrecargar el servidor.
 
-### 7. Auditoría y Registro en Base de Datos con Paginación de 15 Registros
+### 8. Auditoría Forense con Paginación de 15 Registros
 * Panel lateral deslizable derecho (*Drawer*) con auditoría forense completa.
 * Paginación exacta de **15 registros por página** con controles interactivos (Anterior, Siguiente, Indicador de Página y Conteo Total).
 * Capacidad de depuración y vaciado de registros en tiempo real.
 
-### 8. Centro de Permisos de Windows y Grabación Forense Compuesta
-* Flujo de autorización para captura de pantalla fotográfica instantánea en PNG.
-* **Grabación Compuesta de Alta Fidelidad**: Captura continua que combina la cámara web real con las cajas delimitadoras, retículas y HUD de inteligencia artificial.
-* **Soporte de Búsqueda y Navegación Temporal (Timeline Seeking)**: Integración con formato nativo MP4 y WebM con inyección de metadatos de duración para permitir avance rápido y retroceso en reproductores de Windows y navegadores.
-* Guardado directo en carpetas del sistema operativo mediante la File System Access API de Windows.
+### 9. Grabación Forense Compuesta con Búsqueda Temporal
+* Grabación que combina la cámara real con las cajas delimitadoras, retículas y HUD de inteligencia artificial.
+* **Soporte de Búsqueda Temporal (Seeking)**: Compatibilidad nativa en formato MP4 y WebM con inyección de metadatos de duración para avance rápido y retroceso en reproductores de Windows y navegadores.
+* Guardado directo en el sistema operativo mediante la File System Access API.
 
-### 9. 100% Vectores SVG y Cero Emojis
+### 10. Interfaz 100% Vectorial SVG (Cero Emojis)
 * Todos los indicadores, métricas, botones, toasts y alertas utilizan iconos vectoriales SVG de alta definición (Lucide / Heroicons).
-* Ningún carácter emoji en vistas, controladores ni documentación.
+* Estricta ausencia de caracteres emoji en vistas, controladores y documentación.
+
+---
+
+## Entorno Virtual Autónomo (100% Recursos)
+
+El sistema incorpora un entorno de ejecución virtual (`AIVirtualEnvironment`) diseñado para aprovechar al máximo las capacidades del hardware del cliente:
+
+* **Multi-Procesamiento CPU al 100%**: Detecta los núcleos físicos y lógicos disponibles mediante `navigator.hardwareConcurrency` y los enlaza al flujo de inferencia.
+* **Pool Virtual de Tensores en Memoria RAM**: Reserva buffers tipados en memoria (`Float32Array`) para acelerar la computación de tensores sin latencia de asignación.
+* **Motor de Auto-Evolución Continua 24/7**: La IA enriquece su taxonomía base (Gen 1 • 27 conceptos) mediante ciclos autónomos de consulta y asimilación de conocimiento web, adaptando sus factores de confianza según las detecciones en tiempo real.
+* **Consola de Telemetría**: Modal interactivo accesible desde la barra superior que expone en tiempo real el estado de los hilos de CPU, el uso de memoria RAM del buffer, el nivel evolutivo y el terminal de eventos del sandbox.
 
 ---
 
 ## Guía Cromática de Identificación
 
-Cada categoría de objeto, gesto y tonalidad capilar cuenta con una codificación hexadecimal exclusiva:
+La guía cromática se encuentra estructurada en **11 categorías temáticas independientes**, con buscador interactivo en tiempo real:
 
-| Categoría | Elemento / Evento | Código Hexadecimal | Color Representativo |
-| :--- | :--- | :--- | :--- |
-| **Objeto** | Persona | `#3B82F6` | Azul Eléctrico |
-| **Objeto** | Teléfono Celular | `#F59E0B` | Ámbar Brillante |
-| **Objeto** | Laptop / Computadora | `#10B981` | Verde Esmeralda |
-| **Objeto** | Botella de Agua | `#8B5CF6` | Púrpura |
-| **Objeto** | Taza / Vaso | `#14B8A6` | Turquesa |
-| **Objeto** | Silla / Asiento | `#64748B` | Gris Pizarra |
-| **Objeto** | Planta Decorativa | `#22C55E` | Verde |
-| **Gesto** | Gesto: Manos Arriba / Alerta | `#DC2626` | Rojo Carmesí |
-| **Gesto** | Gesto: Saludando con la Mano | `#F59E0B` | Ámbar |
-| **Comportamiento** | Persona Atenta / Presente | `#2563EB` | Azul Real |
-| **Comportamiento** | Trabajando en Computadora | `#059669` | Verde Bosque |
-| **Comportamiento** | Múltiples Personas en Escena | `#6366F1` | Índigo |
-| **Cabello** | Cabello Negro / Ébano | `#1E293B` | Ébano |
-| **Cabello** | Cabello Castaño Oscuro | `#78350F` | Castaño |
-| **Cabello** | Cabello Rubio / Dorado | `#EAB308` | Dorado |
-| **Cabello** | Cabello Canoso / Plateado | `#94A3B8` | Plateado |
+1. **Posturas de Cuerpo Completo**: De pie, sentado, brazos arriba, caídas (`#06B6D4`).
+2. **Gestos de Manos y Dedos**: Conteo de dedos 1-5, pulgar arriba, manos alzadas (`#10B981`).
+3. **Alertas de Seguridad**: Movimientos agresivos, objetos desatendidos, rostro cubierto (`#EF4444`).
+4. **Actividades y Dinámica**: Trabajando en laptop, interacción con personas (`#8B5CF6`).
+5. **Animales Biológicos**: Caninos, felinos, aves, ganado (`#10B981`).
+6. **Tecnología y Dispositivos**: Smartphones, computadoras, pantallas, periféricos (`#06B6D4`).
+7. **Alimentos y Vajilla**: Frutas, bebidas, vajilla de cocina (`#F59E0B`).
+8. **Mobiliario y Entorno**: Sillas, mesas, sofás, plantas (`#64748B`).
+9. **Vehículos y Transporte**: Automóviles, bicicletas, motocicletas (`#3B82F6`).
+10. **Accesorios Personales**: Mochilas, bolsos, lentes, relojes (`#6366F1`).
+11. **Tonos Biométricos de Cabello**: Negro, castaño oscuro, rubio, rojizo, canoso (`#F59E0B`).
 
 ---
 
@@ -141,8 +151,8 @@ Cada categoría de objeto, gesto y tonalidad capilar cuenta con una codificació
 
 * **PHP**: 8.2 o superior (con extensiones `pdo_sqlite`, `curl`, `mbstring`, `openssl`).
 * **Composer**: 2.x
-* **Navegador Moderno**: Google Chrome, Microsoft Edge, Mozilla Firefox o Brave con soporte para WebRTC y WebSockets.
-* **Cámara Web**: Mínimo una cámara web conectada (integrada o USB).
+* **Navegador Moderno**: Google Chrome, Microsoft Edge, Mozilla Firefox o Safari con soporte WebRTC, WebSockets y File System Access API.
+* **Cámara de Video**: Mínimo una cámara web o cámara integrada conectada al dispositivo.
 
 ---
 
@@ -190,7 +200,7 @@ Disponible en: `ws://127.0.0.1:8080`
 
 ## Pruebas Automatizadas
 
-El proyecto incluye una suite completa de pruebas unitarias y de integración que validan rutas, persistencia en base de datos, paginación y difusión de eventos:
+El proyecto incluye una suite integral de **18 pruebas unitarias y de integración** en PHPUnit que validan modelos, persistencia forense, validaciones de API, paginación, transmisiones por WebSocket y compatibilidad de controladores:
 
 ```powershell
 php artisan test
@@ -198,20 +208,34 @@ php artisan test
 
 Resultado verificado:
 ```text
-PASS  Tests\Unit\ExampleTest
-✓ that true is true
+   PASS  Tests\Unit\DetectionConfigTest
+  ✓ object colors constants are valid
+  ✓ behavior colors constants are valid
+  ✓ hair colors constants are valid
+  ✓ detection detected broadcast payload structure
 
-PASS  Tests\Feature\DetectionTest
-✓ detection dashboard loads successfully
-✓ can store object detection and broadcast event
-✓ can store behavior detection
-✓ can store hair tone and gesture detection
-✓ can fetch and clear detection logs
+   PASS  Tests\Unit\DetectionLogTest
+  ✓ detection log creation and attributes
+  ✓ detection log details json casting
+  ✓ detection log fillable protection
+  ✓ detection log confidence boundary precision
 
-PASS  Tests\Feature\ExampleTest
-✓ the application returns a successful response
+   PASS  Tests\Feature\DetectionTest
+  ✓ detection dashboard loads successfully
+  ✓ can store object detection and broadcast event
+  ✓ can store full body pose detection
+  ✓ can store animal detection
+  ✓ can store behavior and finger gesture detection
+  ✓ can store hair tone detection
+  ✓ store validation rejects invalid payloads
+  ✓ can fetch and paginate detection logs
+  ✓ can clear all detection logs
 
-Tests:    7 passed (21 assertions)
+   PASS  Tests\Feature\ExampleTest
+  ✓ the application returns a successful response
+
+  Tests:    18 passed (606 assertions)
+  Duration: 1.31s
 ```
 
 ---
@@ -219,34 +243,54 @@ Tests:    7 passed (21 assertions)
 ## Estructura del Proyecto
 
 ```text
-dbComputech/
+dbCOMPUTECH/
 ├── app/
 │   ├── Events/
-│   │   └── DetectionDetected.php         # Evento de transmisión WebSocket
+│   │   └── DetectionDetected.php         # Evento de difusión WebSocket vía Reverb
 │   ├── Http/Controllers/
-│   │   └── DetectionController.php       # Controlador principal con paginación
-│   └── Models/
-│       └── DetectionLog.php              # Modelo Eloquent con auditoría
+│   │   ├── Controller.php                # Controlador base
+│   │   └── DetectionController.php       # Controlador principal con auditoría y API REST
+│   ├── Models/
+│   │   ├── DetectionLog.php              # Modelo Eloquent de registro forense
+│   │   └── User.php                      # Modelo de autenticación base
+│   └── Providers/
+│       └── AppServiceProvider.php        # Configuración de servicios de la aplicación
 ├── config/
-│   └── reverb.php                        # Configuración del servidor WebSocket
+│   ├── app.php                           # Configuración general de Laravel
+│   ├── broadcasting.php                  # Canales de difusión Reverb
+│   └── reverb.php                        # Parámetros del servidor WebSocket Reverb
 ├── database/
-│   └── migrations/                       # Esquema SQLite para eventos y auditoría
+│   ├── migrations/                       # Esquemas SQLite para eventos y auditoría
+│   └── database.sqlite                   # Base de datos local optimizada
+├── public/
+│   ├── favicon.svg                       # Icono vectorial de la plataforma
+│   ├── index.php                         # Punto de entrada HTTP
+│   └── js/
+│       └── fix-webm-duration.js          # Inyección de metadatos de duración de video
 ├── resources/
 │   └── views/
 │       ├── components/
-│       │   └── button.blade.php          # Componente reutilizable de botones
-│       └── detection.blade.php           # Dashboard interactivo principal
+│       │   └── button.blade.php          # Componente reutilizable de botones estilizados
+│       └── detection.blade.php           # Dashboard interactivo principal con IA
+├── routes/
+│   ├── channels.php                      # Definición de canales de autorización WebSocket
+│   ├── console.php                       # Comandos de consola de Artisan
+│   └── web.php                           # Rutas web y endpoints de la API de detección
 ├── tests/
-│   └── Feature/
-│       └── DetectionTest.php             # Suite de pruebas automatizadas
-├── CODE_OF_CONDUCT.md                   # Normas de convivencia comunitaria
+│   ├── Feature/
+│   │   ├── DetectionTest.php             # Pruebas funcionales de endpoints y WebSockets
+│   │   └── ExampleTest.php               # Prueba de respuesta del servidor
+│   └── Unit/
+│       ├── DetectionConfigTest.php       # Pruebas de configuración y eventos
+│       └── DetectionLogTest.php          # Pruebas del modelo de auditoría
+├── CODE_OF_CONDUCT.md                   # Normas éticas y de convivencia
 ├── COPYRIGHT.md                         # Propiedad intelectual y autoría
-└── README.md                            # Documentación técnica del proyecto
+└── README.md                            # Documentación técnica completa
 ```
 
 ---
 
 ## Código de Conducta y Derechos de Autor
 
-* Para conocer nuestras normas comunitarias, consulta el [Código de Conducta](./CODE_OF_CONDUCT.md).
-* Para información legal sobre titularidad y licencias, consulta la [Declaración de Derechos de Autor](./COPYRIGHT.md).
+* Para conocer nuestras normas comunitarias y directrices éticas, consulta el [Código de Conducta](./CODE_OF_CONDUCT.md).
+* Para información legal sobre titularidad intelectual y licencias de terceros, consulta la [Declaración de Derechos de Autor](./COPYRIGHT.md).

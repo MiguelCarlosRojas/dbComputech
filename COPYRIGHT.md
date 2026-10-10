@@ -1,13 +1,13 @@
 # Declaración de Derechos de Autor y Propiedad Intelectual
 
-**dbComputech**
+**dbCOMPUTECH - Sistema de Visión Artificial, Detección de Entorno, Cuerpo Completo y Gestos**  
 Copyright (c) 2026 Miguel Carlos Rojas. Todos los derechos reservados.
 
 ---
 
 ## 1. Titularidad del Código y Propiedad Intelectual
 
-Todo el código fuente, la arquitectura de software, la documentación, los esquemas de bases de datos, los componentes de interfaz de usuario y los algoritmos implementados en el proyecto **dbComputech** son propiedad intelectual exclusiva de su autor, **Miguel Carlos Rojas**, salvo cuando se indique expresamente lo contrario respecto a dependencias de terceros.
+Todo el código fuente, la arquitectura de software, los algoritmos de seguimiento cinematográfico, la estructura del Entorno Virtual Autónomo de IA, los componentes de interfaz de usuario, los esquemas de bases de datos y la documentación técnica implementados en el proyecto **dbCOMPUTECH** son propiedad intelectual exclusiva de su autor, **Miguel Carlos Rojas**, salvo cuando se indique expresamente lo contrario respecto a librerías y dependencias de terceros.
 
 Queda prohibida la reproducción total o parcial, distribución, ingeniería inversa o explotación comercial de este software sin la autorización expresa y por escrito del titular de los derechos de autor, sujeta a los términos y licencias establecidas en este repositorio.
 
@@ -15,7 +15,7 @@ Queda prohibida la reproducción total o parcial, distribución, ingeniería inv
 
 ## 2. Reconocimiento de Librerías y Software de Terceros
 
-Este proyecto utiliza librerías, marcos de trabajo y herramientas de código abierto bajo sus respectivas licencias permisivas:
+Este proyecto integra herramientas, marcos de trabajo y modelos de código abierto bajo sus respectivas licencias permisivas:
 
 * **Laravel Framework**
   * Licencia: MIT License
@@ -32,17 +32,22 @@ Este proyecto utiliza librerías, marcos de trabajo y herramientas de código ab
   * Copyright (c) The TensorFlow Authors
   * Sitio web: https://www.tensorflow.org/js
 
-* **Tailwind CSS**
-  * Licencia: MIT License
-  * Copyright (c) Tailwind Labs, Inc.
-  * Sitio web: https://tailwindcss.com
+* **MediaPipe Hands & MediaPipe Pose**
+  * Licencia: Apache License 2.0
+  * Copyright (c) Google LLC
+  * Sitio web: https://developers.google.com/mediapipe
 
 * **Pusher JavaScript Client**
   * Licencia: MIT License
   * Copyright (c) Pusher Ltd.
   * Sitio web: https://pusher.com
 
-* **Lucide & Heroicons (Vectores SVG)**
+* **Tailwind CSS**
+  * Licencia: MIT License
+  * Copyright (c) Tailwind Labs, Inc.
+  * Sitio web: https://tailwindcss.com
+
+* **Vectores SVG (Lucide & Heroicons)**
   * Licencia: MIT License
   * Copyright (c) Lucide Contributors & Tailwind Labs
   * Sitio web: https://lucide.dev / https://heroicons.com
@@ -59,5 +64,5 @@ En ningún caso el autor o los titulares de los derechos de autor serán respons
 
 ## 4. Contacto y Consultas de Licenciamiento
 
-Para consultas sobre licencias, colaboraciones o permisos de uso institucional, por favor diríjase al repositorio oficial del proyecto en GitHub:
+Para consultas sobre licencias, colaboraciones o autorizaciones institucionales, por favor diríjase al repositorio oficial del proyecto en GitHub:  
 https://github.com/MiguelCarlosRojas/dbComputech

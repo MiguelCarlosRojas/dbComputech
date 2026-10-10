@@ -1,77 +1,65 @@
-# Código de Conducta de dbComputech
+# Código de Conducta de dbCOMPUTECH
 
 ## Nuestro Compromiso
 
-Nosotros, como miembros, colaboradores y administradores del proyecto **dbComputech**, nos comprometemos a hacer que la participación en nuestra comunidad sea una experiencia libre de acoso para todos, independientemente de la edad, dimensión corporal, discapacidad visible o invisible, etnicidad, características sexuales, identidad y expresión de género, nivel de experiencia, educación, estatus socioeconómico, nacionalidad, apariencia personal, raza, religión o identidad y orientación sexual.
+Nosotros, como miembros, colaboradores y administradores del proyecto **dbCOMPUTECH**, nos comprometemos a hacer que la participación en nuestra comunidad e investigación tecnológica sea una experiencia libre de acoso para todos, independientemente de la edad, dimensión corporal, discapacidad visible o invisible, etnicidad, características sexuales, identidad y expresión de género, nivel de experiencia, educación, estatus socioeconómico, nacionalidad, apariencia personal, raza, religión o identidad y orientación sexual.
 
-Nos comprometemos a actuar e interactuar de maneras que contribuyan a una comunidad abierta, acogedora, diversa, inclusiva y saludable.
+Nos comprometemos a actuar e interactuar de maneras que contribuyan a un entorno de desarrollo abierto, riguroso, ético, inclusivo y colaborativo en el campo de la visión artificial y la inteligencia artificial.
 
 ---
 
 ## Nuestros Estándares
 
-Ejemplos de comportamientos que contribuyen a un entorno positivo para nuestra comunidad:
+Ejemplos de comportamientos que contribuyen a un entorno positivo para el desarrollo de dbCOMPUTECH:
 
-* Demostrar empatía y amabilidad hacia otras personas.
-* Respetar las diferentes opiniones, puntos de vista y experiencias de vida.
-* Dar y recibir retroalimentación constructiva de manera adecuada.
-* Aceptar la responsabilidad y disculparse con aquellos afectados por nuestros errores, aprendiendo de la experiencia.
-* Enfocarse en lo que es mejor no solo para nosotros como individuos, sino para la comunidad en general.
+* Demostrar profesionalismo, empatía y respeto hacia todas las personas.
+* Respetar las diferentes perspectivas de arquitectura de software, visión por computadora y diseño de modelos.
+* Aportar retroalimentación técnica constructiva basada en código verificable y pruebas reales.
+* Aceptar la responsabilidad técnica, documentar errores y aprender de las revisiones de código.
+* Priorizar la seguridad, la privacidad de datos biométricos y el uso ético de modelos de visión artificial.
 
 Ejemplos de comportamientos inaceptables:
 
-* El uso de lenguaje o imágenes de contenido sexual no deseado, así como insinuaciones sexuales de cualquier tipo.
-* Comentarios despectivos, insultos personales o ataques políticos y religiosos.
+* El uso de lenguaje o imágenes de contenido inapropiado o degradante.
+* Comentarios despectivos, ataques personales o confrontaciones no profesionales.
 * Acoso público o privado en cualquier forma.
-* Publicar información privada de otras personas, como direcciones físicas o de correo electrónico, sin su consentimiento explícito.
-* Cualquier otra conducta que razonablemente pueda considerarse inapropiada en un entorno profesional.
+* Publicación no autorizada de datos personales o grabaciones sensibles de terceros sin consentimiento explícito.
+* Manipulación maliciosa de algoritmos, pruebas unitarias o documentación del proyecto.
 
 ---
 
-## Responsabilidades de Cumplimiento
+## Responsabilidades de los Mantenedores
 
-Los administradores de la comunidad son responsables de aclarar y hacer cumplir nuestros estándares de comportamiento aceptable y tomarán medidas correctivas apropiadas y justas en respuesta a cualquier comportamiento que consideren inapropiado, amenazante, ofensivo o dañino.
+Los administradores de dbCOMPUTECH son responsables de clarificar y hacer cumplir nuestros estándares de conducta, y tomarán medidas correctivas proporcionales y justas ante cualquier comportamiento que comprometa la integridad de la comunidad o del software.
 
-Los administradores tienen el derecho y la responsabilidad de eliminar, editar o rechazar comentarios, confirmaciones (*commits*), código, ediciones de documentación, problemas (*issues*) y otras contribuciones que no estén alineadas con este Código de Conducta, y comunicarán las razones de las decisiones de moderación cuando sea apropiado.
+Los administradores tienen la facultad y el deber de editar, rechazar o eliminar confirmaciones (*commits*), problemas (*issues*), solicitudes de extracción (*pull requests*) o comentarios que contravengan este Código de Conducta.
 
 ---
 
 ## Alcance
 
-Este Código de Conducta se aplica a todos los espacios del proyecto, incluidos los repositorios de código, rastreadores de problemas, discusiones de GitHub, canales de comunicación y cualquier contexto en el que un individuo represente formalmente al proyecto dbComputech ante el público.
+Este Código de Conducta se aplica a todos los espacios oficiales del proyecto, incluyendo el repositorio de GitHub, rastreadores de problemas, discusiones de arquitectura, canales de mensajería y cualquier entorno donde se represente oficialmente a **dbCOMPUTECH**.
 
 ---
 
-## Aplicación
+## Aplicación y Reportes
 
-Los casos de comportamiento abusivo, acosador o inaceptable pueden ser comunicados al equipo de mantenimiento de dbComputech a través de los canales oficiales de contacto en el repositorio de GitHub. Todas las quejas serán revisadas e investigadas de manera rápida y justa.
+Cualquier comportamiento que viole estos principios puede ser reportado al equipo responsable a través de los canales de contacto del repositorio oficial:  
+https://github.com/MiguelCarlosRojas/dbComputech
 
-El equipo de administración está obligado a respetar la privacidad y la seguridad de quien reporte cualquier incidente.
+Todas las comunicaciones se tratarán con estricta confidencialidad y serán investigadas con prontitud.
 
 ---
 
-## Directrices de Moderación
+## Niveles de Moderación
 
-Los administradores del proyecto seguirán estas pautas para determinar las consecuencias de cualquier acción que viole este Código de Conducta:
-
-### 1. Corrección
-* **Impacto comunitario**: Uso de lenguaje inapropiado u otro comportamiento considerado poco profesional o no bienvenido en la comunidad.
-* **Consecuencia**: Una advertencia por escrito y privada de los administradores del proyecto, proporcionando claridad sobre la naturaleza de la infracción y una explicación de por qué el comportamiento fue inapropiado. Se puede solicitar una disculpa pública.
-
-### 2. Advertencia
-* **Impacto comunitario**: Una infracción a través de un solo incidente o una serie de acciones.
-* **Consecuencia**: Una advertencia con consecuencias por comportamiento continuo. No se permite interactuar con las personas involucradas durante un período de tiempo determinado. Esto incluye evitar interacciones en canales de la comunidad. Violar estos términos puede conducir a una suspensión temporal o permanente.
-
-### 3. Suspensión Temporal
-* **Impacto comunitario**: Una violación grave de los estándares de la comunidad, incluido el comportamiento acosador sostenido.
-* **Consecuencia**: Una suspensión temporal de cualquier tipo de interacción o comunicación pública con la comunidad por un período de tiempo determinado. No se permite interacción pública o privada con las personas involucradas.
-
-### 4. Expulsión Permanente
-* **Impacto comunitario**: Demostrar un patrón de violación de los estándares de la comunidad, incluido el acoso continuo, la hostilidad hacia individuos o grupos protegidos, o la denigración de la comunidad en general.
-* **Consecuencia**: Una prohibición permanente de cualquier tipo de interacción pública dentro de la comunidad del proyecto.
+1. **Corrección**: Advertencia privada por escrito detallando la conducta observada y el estándar requerido.
+2. **Advertencia Formal**: Apercibimiento formal con condiciones explícitas de participación tras faltas reiteradas.
+3. **Suspensión Temporal**: Inhabilitación temporal para interactuar en issues, pull requests y discusiones del proyecto.
+4. **Expulsión Definitiva**: Bloqueo permanente de interacción y contribución en toda la infraestructura de dbCOMPUTECH.
 
 ---
 
 ## Atribución
 
-Este Código de Conducta es una adaptación del [Contributor Covenant](https://www.contributor-covenant.org), versión 2.1, disponible en https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
+Este documento se basa en el estándar [Contributor Covenant](https://www.contributor-covenant.org), versión 2.1, adaptado para proyectos de ingeniería de software e inteligencia artificial aplicada.

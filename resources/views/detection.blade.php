@@ -115,7 +115,7 @@
                         </h1>
                         <span id="aiEvolutionBadge" class="inline-flex items-center gap-1.5 text-[10px] sm:text-xs px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-mono-code font-medium shadow-sm">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span id="aiEvolutionBadgeText">Visión IA Pro • Auto-Evolutiva (Gen 1 • 27 Conceptos • 100% Adaptativa)</span>
+                            <span id="aiEvolutionBadgeText">Visión IA Pro (Gen 1)</span>
                         </span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-slate-400 hidden md:block">Detección de Objetos del Entorno, Multi-Persona, Gestos y Tono de Cabello con WebSockets</p>
@@ -2427,7 +2427,7 @@
             updateEvolutionBadgeUI() {
                 const el = document.getElementById('aiEvolutionBadge');
                 if (el) {
-                    el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span id="aiEvolutionBadgeText">Visión IA Pro • Auto-Evolutiva (Gen ${this.stats.generation} • ${this.stats.learnedConcepts} Conceptos • 100% Adaptativa)</span>`;
+                    el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span id="aiEvolutionBadgeText">Visión IA Pro (Gen ${this.stats.generation})</span>`;
                 }
                 const card = document.getElementById('aiEvolutionText');
                 if (card) {
