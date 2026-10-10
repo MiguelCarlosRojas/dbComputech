@@ -2218,6 +2218,9 @@
                             synonyms: []
                         };
                     }
+                    if (!this.knowledgeTaxonomy[k].webEnriched) {
+                        this.onlineLearningQueue.add(k);
+                    }
                 }
                 this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
                 this.updateEvolutionBadgeUI();
@@ -2227,15 +2230,32 @@
                 if (this.isFetchingWeb) return;
                 this.isFetchingWeb = true;
                 try {
-                    const wikiUrl = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(concept)}`;
-                    const resp = await fetch(wikiUrl, { headers: { 'Accept': 'application/json' } });
+                    const spanishQuery = (typeof COCO_SPANISH_MAP !== 'undefined' && COCO_SPANISH_MAP[concept])
+                        ? COCO_SPANISH_MAP[concept]
+                        : concept;
+
+                    // 1. Consulta autónoma primaria a Wikipedia en español
+                    let wikiUrl = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(spanishQuery)}`;
+                    let resp = await fetch(wikiUrl, { headers: { 'Accept': 'application/json' } });
+
+                    // 2. Si no se encuentra en español, fallback a Wikipedia en inglés
+                    if (!resp.ok) {
+                        wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(concept)}`;
+                        resp = await fetch(wikiUrl, { headers: { 'Accept': 'application/json' } });
+                    }
+
                     if (resp.ok) {
                         const data = await resp.json();
-                        if (data && data.description) {
+                        const snippet = data.description || (data.extract ? data.extract.split('.')[0] + '.' : null);
+                        if (snippet) {
                             if (!this.knowledgeTaxonomy[concept]) {
-                                this.knowledgeTaxonomy[concept] = { name: data.title || concept, occurrences: 1, confidenceFactor: 1.0 };
+                                this.knowledgeTaxonomy[concept] = {
+                                    name: data.title || spanishQuery || concept,
+                                    occurrences: 1,
+                                    confidenceFactor: 1.0
+                                };
                             }
-                            this.knowledgeTaxonomy[concept].details = data.description;
+                            this.knowledgeTaxonomy[concept].details = snippet;
                             this.knowledgeTaxonomy[concept].webEnriched = true;
                             this.stats.webKnowledgeHits++;
                             this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
@@ -2244,7 +2264,7 @@
                         }
                     }
                 } catch (e) {
-                    // Silencioso en desconexión
+                    // Silencioso en desconexión momentánea de internet
                 } finally {
                     this.isFetchingWeb = false;
                 }
@@ -2391,7 +2411,7 @@
                         this.onlineLearningQueue.delete(nextConcept);
                         this.queryWebKnowledge(nextConcept);
                     }
-                }, 12000);
+                }, 8000);
             }
 
             updateEvolutionBadgeUI() {
