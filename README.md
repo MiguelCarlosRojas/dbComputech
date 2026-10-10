@@ -7,7 +7,7 @@
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose_%26_Hands-00897B?style=for-the-badge&logo=google&logoColor=white)](https://developers.google.com/mediapipe)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
-[![Tests](https://img.shields.io/badge/Tests-18%2F18_Passed_(606_assertions)-10B981?style=for-the-badge&logo=githubactions&logoColor=white)](#pruebas-automatizadas)
+[![Tests](https://img.shields.io/badge/Tests-17%2F17_Passed_(605_assertions)-10B981?style=for-the-badge&logo=githubactions&logoColor=white)](#pruebas-automatizadas)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./COPYRIGHT.md)
 
 Plataforma integral de **visión artificial en tiempo real**, detección multi-objetivo, seguimiento de cuerpo completo, reconocimiento de gestos de manos, análisis de tono capilar y auditoría forense desarrollada en **Laravel 11 puro** con arquitectura reactiva sobre **WebSockets (Laravel Reverb)**, inferencia local de alta fidelidad con **TensorFlow.js** y **Google MediaPipe**, motor de **IA Auto-Evolutiva 24/7**, y un **Entorno Virtual Autónomo** que aprovecha el 100% de los recursos de hardware (CPU multi-núcleo y pool de memoria RAM para tensores) en PC, Mac, laptops, Android e iOS.
@@ -200,7 +200,7 @@ Disponible en: `ws://127.0.0.1:8080`
 
 ## Pruebas Automatizadas
 
-El proyecto incluye una suite integral de **18 pruebas unitarias y de integración** en PHPUnit que validan modelos, persistencia forense, validaciones de API, paginación, transmisiones por WebSocket y compatibilidad de controladores:
+El proyecto incluye una suite integral de **17 pruebas unitarias y de integración** en PHPUnit que validan modelos, persistencia forense, validaciones de API, paginación, transmisiones por WebSocket y compatibilidad de controladores:
 
 ```powershell
 php artisan test
@@ -231,11 +231,8 @@ Resultado verificado:
   ✓ can fetch and paginate detection logs
   ✓ can clear all detection logs
 
-   PASS  Tests\Feature\ExampleTest
-  ✓ the application returns a successful response
-
-  Tests:    18 passed (606 assertions)
-  Duration: 1.31s
+  Tests:    17 passed (605 assertions)
+  Duration: 1.25s
 ```
 
 ---
@@ -278,8 +275,7 @@ dbCOMPUTECH/
 │   └── web.php                           # Rutas web y endpoints de la API de detección
 ├── tests/
 │   ├── Feature/
-│   │   ├── DetectionTest.php             # Pruebas funcionales de endpoints y WebSockets
-│   │   └── ExampleTest.php               # Prueba de respuesta del servidor
+│   │   └── DetectionTest.php             # Pruebas funcionales de endpoints y WebSockets
 │   └── Unit/
 │       ├── DetectionConfigTest.php       # Pruebas de configuración y eventos
 │       └── DetectionLogTest.php          # Pruebas del modelo de auditoría

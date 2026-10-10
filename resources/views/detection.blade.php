@@ -2493,9 +2493,6 @@
                     // Reserva de pool de tensores virtuales (Float32Array) para aceleración en memoria RAM
                     const elements = 1024 * 1024 * 2; // ~8 MB inicial
                     this.tensorBufferPool = new Float32Array(elements);
-                    for (let i = 0; i < 500; i++) {
-                        this.tensorBufferPool[i] = Math.random();
-                    }
                 } catch (e) {
                     console.warn('Virtual buffer pool notice:', e);
                 }
@@ -2552,19 +2549,6 @@
                 setInterval(() => {
                     this.refreshTelemetry();
                 }, 5000);
-
-                setInterval(() => {
-                    if (Math.random() > 0.6) {
-                        const logs = [
-                            '[TensorPool] Ciclo de recolección y reciclaje de tensores completado.',
-                            '[Multi-Core] Balanceo de carga de inferencia distribuido entre hilos.',
-                            '[Auto-Evolución] Verificando taxonomía de objetos y sinapsis en segundo plano.',
-                            '[Sandbox] Buffer de memoria optimizado para latencia cero.'
-                        ];
-                        const pick = logs[Math.floor(Math.random() * logs.length)];
-                        this.logTerminal(pick);
-                    }
-                }, 15000);
             }
         }
         window.aiVirtualEnv = new AIVirtualEnvironment(evolutionaryEngine);
@@ -5218,24 +5202,6 @@
             } catch (e) {
                 console.error(e);
             }
-        }
-
-        function testNotificationEvent() {
-            const demoItems = [
-                { category: 'object', label: 'cell phone', display_name: 'Celular', color: '#F59E0B', confidence: 0.95 },
-                { category: 'object', label: 'laptop', display_name: 'Laptop', color: '#10B981', confidence: 0.98 },
-                { category: 'object', label: 'chair', display_name: 'Silla', color: '#64748B', confidence: 0.89 },
-                { category: 'object', label: 'potted plant', display_name: 'Planta', color: '#22C55E', confidence: 0.91 },
-                { category: 'hair', label: 'hair_dark_brown', display_name: 'Cabello Castaño Oscuro', color: '#78350F', confidence: 0.93 },
-                { category: 'hair', label: 'hair_black', display_name: 'Cabello Negro', color: '#1E293B', confidence: 0.96 },
-                { category: 'hair', label: 'hair_blonde', display_name: 'Cabello Rubio', color: '#EAB308', confidence: 0.92 },
-                { category: 'gesture', label: 'hands_up', display_name: 'Manos Arriba', color: '#DC2626', confidence: 0.94 },
-                { category: 'gesture', label: 'waving', display_name: 'Saludando con Mano', color: '#F59E0B', confidence: 0.90 },
-                { category: 'behavior', label: 'multiple_people', display_name: 'Múltiples Personas (2 en escena)', color: '#6366F1', confidence: 0.97 },
-                { category: 'behavior', label: 'working_laptop', display_name: 'Trabajando en Laptop', color: '#059669', confidence: 0.96 }
-            ];
-            const randomItem = demoItems[Math.floor(Math.random() * demoItems.length)];
-            sendDetectionToServer(randomItem);
         }
 
         // Close camera picker menu when clicking outside
