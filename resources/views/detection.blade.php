@@ -322,10 +322,7 @@
                         </div>
                         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
-                            <span id="hardwareCoresCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/60 hidden sm:inline-flex items-center gap-1">
-                                <svg class="w-3 h-3 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
-                                <span id="hardwareCoresText">Cargando HW...</span>
-                            </span>
+
                             <span id="fpsCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">0 FPS</span>
                             <span id="inferenceCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">0 ms</span>
                             <x-button variant="secondary" size="xs" onclick="toggleFullscreenVideo()" icon='<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>'>
@@ -4992,11 +4989,6 @@
 
         // Auto load on start: WS, detection models, camera enumeration, and initial 6 feed records
         document.addEventListener('DOMContentLoaded', () => {
-            const cores = navigator.hardwareConcurrency || 4;
-            const hwText = document.getElementById('hardwareCoresText');
-            if (hwText) {
-                hwText.innerText = `${cores} Hilos CPU • 100% Recursos`;
-            }
             initWebSocket();
             loadDetectionModel();
             checkAvailableCameras();
