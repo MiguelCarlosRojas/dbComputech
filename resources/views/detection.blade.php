@@ -784,7 +784,9 @@
             'microwave': 'Microondas', 'oven': 'Horno', 'toaster': 'Tostadora',
             'sink': 'Lavabo', 'refrigerator': 'Refrigerador', 'book': 'Libro',
             'clock': 'Reloj', 'vase': 'Florero', 'scissors': 'Tijeras', 'teddy bear': 'Peluche',
-            'hair drier': 'Secador', 'toothbrush': 'Cepillo Dental'
+            'hair drier': 'Secador', 'toothbrush': 'Cepillo Dental',
+            'pen': 'Bolígrafo', 'glasses': 'Lentes', 'watch': 'Reloj Pulsera',
+            'wallet': 'Billetera', 'headphones': 'Auriculares', 'document': 'Documento'
         };
 
         // State Management
@@ -1279,7 +1281,13 @@
         function buildFeedCardElement(data) {
             let categoryLabel = 'OBJETO';
             let catColorClass = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-            if (data.category === 'hair') {
+            const alertKeys = ['handling_sharp', 'person_fallen', 'face_hidden', 'aggressive_motion', 'unattended_object'];
+            const isAlert = (data.category === 'behavior' && (alertKeys.includes(data.label) || alertKeys.includes(data.label_key)));
+
+            if (isAlert) {
+                categoryLabel = 'ALERTA';
+                catColorClass = 'bg-rose-500/25 text-rose-300 border-rose-500/50 animate-pulse';
+            } else if (data.category === 'hair') {
                 categoryLabel = 'CABELLO';
                 catColorClass = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
             } else if (data.category === 'gesture') {
@@ -1291,26 +1299,30 @@
             }
 
             const item = document.createElement('div');
-            item.className = 'p-3 rounded-xl bg-slate-950/85 border border-slate-800 transition transform hover:translate-x-1 shadow-md shrink-0 h-[68px] flex flex-col justify-between';
+            item.className = 'p-3 rounded-xl bg-slate-950/85 border border-slate-800 transition transform hover:translate-x-1 shadow-md shrink-0 min-h-[72px] flex flex-col justify-between gap-1.5';
             item.style.borderLeft = `4px solid ${data.color}`;
 
             const formattedTime = data.timestamp || (data.created_at ? new Date(data.created_at).toLocaleTimeString() : new Date().toLocaleTimeString());
+            const trackBadge = (data.details && data.details.track_id) ? `<span class="text-[9px] font-mono-code px-1 rounded bg-slate-900 border border-slate-700 text-slate-300 shrink-0">#${data.details.track_id}</span>` : '';
+            const posBadge = (data.details && data.details.position) ? `<span class="text-[9px] px-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono-code shrink-0">${data.details.position}</span>` : '';
+            const ctxText = (data.details && data.details.context) ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700/60 text-slate-300 font-sans truncate max-w-[170px]" title="${data.details.context}">${data.details.context}</span>` : '';
 
             item.innerHTML = `
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-1.5 truncate">
                         <span class="w-3 h-3 rounded-full shrink-0 shadow-sm" style="background-color: ${data.color}"></span>
                         <span class="text-xs font-bold text-white truncate">${data.display_name}</span>
-                        ${data.details && data.details.position ? `<span class="text-[9px] px-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono-code shrink-0">${data.details.position}</span>` : ''}
+                        ${trackBadge}
+                        ${posBadge}
                     </div>
                     <span class="text-[11px] font-mono-code text-slate-400 shrink-0">${formattedTime}</span>
                 </div>
-                <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px]">
-                    <div class="flex items-center gap-1.5">
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border ${catColorClass}">${categoryLabel}</span>
-                        <span class="font-mono-code text-slate-400" style="color: ${data.color}">${data.color}</span>
+                <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px] gap-2">
+                    <div class="flex items-center gap-1.5 truncate">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 ${catColorClass}">${categoryLabel}</span>
+                        ${ctxText}
                     </div>
-                    <div class="font-mono-code text-slate-300">
+                    <div class="font-mono-code text-slate-300 shrink-0">
                         Confianza: <span class="font-bold text-cyan-400">${data.confidence}%</span>
                     </div>
                 </div>
@@ -1543,7 +1555,12 @@
                 tr.className = 'hover:bg-slate-900/50 transition bg-emerald-500/5';
 
                 let catBadge = '<span class="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-semibold text-[10px]">OBJETO</span>';
-                if (data.category === 'hair') {
+                const alertKeys = ['handling_sharp', 'person_fallen', 'face_hidden', 'aggressive_motion', 'unattended_object'];
+                const isAlert = (data.category === 'behavior' && (alertKeys.includes(data.label) || alertKeys.includes(data.label_key)));
+
+                if (isAlert) {
+                    catBadge = '<span class="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 font-semibold text-[10px]">ALERTA</span>';
+                } else if (data.category === 'hair') {
                     catBadge = '<span class="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-semibold text-[10px]">CABELLO</span>';
                 } else if (data.category === 'gesture') {
                     catBadge = '<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-[10px]">GESTO</span>';
@@ -2388,7 +2405,7 @@
                         const distToHand = Math.hypot(ocx - hcx, ocy - hcy);
                         if (distToHand < Math.max(hw, hh, ow, oh) * 1.5) {
                             if (fruitClasses.includes(pred.class)) {
-                                ctxTag = 'En mano • Mostrando fruta/verdura';
+                                ctxTag = 'En mano • Mostrando fruta';
                             } else if (mealClasses.includes(pred.class)) {
                                 ctxTag = 'En mano • Mostrando alimento';
                             } else if (pred.class === 'cell phone') {
@@ -2411,7 +2428,7 @@
                             if (pred.class === 'cell phone') {
                                 ctxTag = (ocy <= py + ph * 0.40) ? 'En oreja • Llamada activa' : 'En mano • Manipulando celular';
                             } else if (fruitClasses.includes(pred.class)) {
-                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando fruta/verdura';
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando fruta';
                             } else if (mealClasses.includes(pred.class)) {
                                 ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando alimento';
                             } else if (utensilClasses.includes(pred.class)) {
@@ -2423,7 +2440,7 @@
                             } else if (pred.class === 'book') {
                                 ctxTag = 'En mano • Lectura';
                             } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase') {
-                                ctxTag = 'Interacción • Sacando/guardando';
+                                ctxTag = 'Manipulando pertenencia';
                             } else {
                                 ctxTag = 'En mano • Sostenido';
                             }
@@ -2477,7 +2494,18 @@
             const utensilClasses = ['fork', 'knife', 'spoon'];
 
             if (personCount === 0) {
-                // Caso 1: Objeto mostrado en primer plano a la cámara (sin cuerpo completo en escena)
+                // Caso 1: Objeto desatendido en el entorno
+                const unattendedObjs = predictions.filter(p => ['backpack', 'handbag', 'suitcase', 'laptop', 'cell phone', 'wallet'].includes(p.class));
+                if (unattendedObjs.length > 0) {
+                    return {
+                        key: 'unattended_object',
+                        name: `Objeto Desatendido: ${getObjectDisplayName(unattendedObjs[0].class)}`,
+                        color: BEHAVIOR_COLOR_MAP['unattended_object'] ? BEHAVIOR_COLOR_MAP['unattended_object'].color : '#F59E0B',
+                        confidence: 0.95
+                    };
+                }
+
+                // Caso 2: Objeto mostrado en primer plano a la cámara (sin cuerpo completo en escena)
                 const fruitsVeg = predictions.filter(p => fruitClasses.includes(p.class));
                 if (fruitsVeg.length > 0) {
                     return {
@@ -2528,7 +2556,7 @@
                     };
                 }
 
-                // Caso 2: Manos mostradas en primer plano a la cámara (conteo de dedos)
+                // Caso 3: Manos mostradas en primer plano a la cámara (conteo de dedos)
                 if (handResults && handResults.length > 0) {
                     if (handResults.length >= 2) {
                         const totalFingers = handResults[0].count + handResults[1].count;
@@ -2561,11 +2589,13 @@
             const laptops = predictions.filter(p => p.class === 'laptop' || p.class === 'tv');
             const keyboards = predictions.filter(p => p.class === 'keyboard' || p.class === 'mouse');
             const drinks = predictions.filter(p => p.class === 'bottle' || p.class === 'cup' || p.class === 'wine glass');
-            const books = predictions.filter(p => p.class === 'book');
+            const books = predictions.filter(p => p.class === 'book' || p.class === 'document');
             const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch');
             const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
-            const bags = predictions.filter(p => p.class === 'backpack' || p.class === 'handbag' || p.class === 'suitcase');
+            const bags = predictions.filter(p => p.class === 'backpack' || p.class === 'handbag' || p.class === 'suitcase' || p.class === 'wallet');
             const utensils = predictions.filter(p => utensilClasses.includes(p.class));
+            const writingTools = predictions.filter(p => ['pen', 'document'].includes(p.class));
+            const sharpObjects = predictions.filter(p => ['knife', 'scissors'].includes(p.class));
 
             // 1. Detección de Grupo / Múltiples Personas
             if (personCount >= 2) {
@@ -2593,7 +2623,32 @@
             const mainPerson = personsData[0];
             const [px, py, pw, ph] = mainPerson.bbox;
 
-            // 2. Comiendo Frutas, Verduras o Alimentos (MÁXIMA PRIORIDAD CUANDO ESTÁ CERCA DE LA BOCA)
+            // 2. Alerta de Seguridad: Persona Caída
+            if (pw / (ph || 1) >= 1.35 && (py + ph) >= canvasElement.height * 0.40) {
+                return {
+                    key: 'person_fallen',
+                    name: BEHAVIOR_COLOR_MAP['person_fallen'] ? BEHAVIOR_COLOR_MAP['person_fallen'].name : 'Persona Caída',
+                    color: BEHAVIOR_COLOR_MAP['person_fallen'] ? BEHAVIOR_COLOR_MAP['person_fallen'].color : '#DC2626',
+                    confidence: 0.96
+                };
+            }
+
+            // 3. Alerta de Seguridad: Manipulando Objeto Peligroso (Cuchillo, Tijeras)
+            for (const sharp of sharpObjects) {
+                const [sx, sy, sw, sh] = sharp.bbox;
+                const scx = sx + sw / 2;
+                const scy = sy + sh / 2;
+                if (scx >= px - pw * 0.35 && scx <= px + pw * 1.35 && scy >= py && scy <= py + ph * 1.1) {
+                    return {
+                        key: 'handling_sharp',
+                        name: `Manipulando Peligroso [${getObjectDisplayName(sharp.class)}]`,
+                        color: BEHAVIOR_COLOR_MAP['handling_sharp'] ? BEHAVIOR_COLOR_MAP['handling_sharp'].color : '#E11D48',
+                        confidence: 0.97
+                    };
+                }
+            }
+
+            // 4. Comiendo Frutas, Verduras o Alimentos (MÁXIMA PRIORIDAD CUANDO ESTÁ CERCA DE LA BOCA)
             const foods = predictions.filter(p => [...fruitClasses, ...mealClasses].includes(p.class));
             for (const food of foods) {
                 const [fx, fy, fw, fh] = food.bbox;
@@ -2612,7 +2667,7 @@
                 }
             }
 
-            // 3. Celular: Llamada Telefónica Activa en Oreja vs Manipulación
+            // 5. Celular: Llamada Telefónica Activa en Oreja vs Manipulación
             for (const phone of phones) {
                 const [bx, by, bw, bh] = phone.bbox;
                 const phoneCenterX = bx + bw / 2;
@@ -2638,7 +2693,7 @@
                 }
             }
 
-            // 4. Mostrando Fruta o Verdura a la Cámara
+            // 6. Mostrando Fruta a la Cámara
             const fruitsVeg = predictions.filter(p => fruitClasses.includes(p.class));
             for (const fv of fruitsVeg) {
                 const [fvx, fvy, fvw, fvh] = fv.bbox;
@@ -2652,7 +2707,7 @@
                 }
             }
 
-            // 5. Mostrando Comida o Alimento Preparado
+            // 7. Mostrando Comida o Alimento Preparado
             const meals = predictions.filter(p => mealClasses.includes(p.class));
             for (const meal of meals) {
                 const [mx, my, mw, mh] = meal.bbox;
@@ -2666,7 +2721,7 @@
                 }
             }
 
-            // 6. Bebiendo Líquido (Botella, Taza, Copa)
+            // 8. Bebiendo Líquido (Botella, Taza, Copa)
             for (const drink of drinks) {
                 const [dx, dy, dw, dh] = drink.bbox;
                 const drinkCenterX = dx + dw / 2;
@@ -2683,20 +2738,33 @@
                 }
             }
 
-            // 7. Manipulando Mochila, Cartera o Maleta
+            // 9. Tomando Apuntes o Manipulando Escritura
+            for (const wt of writingTools) {
+                const [wx, wy, ww, wh] = wt.bbox;
+                if (wx + ww / 2 >= px - pw * 0.3 && wx + ww / 2 <= px + pw * 1.3 && wy >= py + ph * 0.3) {
+                    return {
+                        key: 'taking_notes',
+                        name: BEHAVIOR_COLOR_MAP['taking_notes'] ? BEHAVIOR_COLOR_MAP['taking_notes'].name : 'Tomando Apuntes',
+                        color: BEHAVIOR_COLOR_MAP['taking_notes'] ? BEHAVIOR_COLOR_MAP['taking_notes'].color : '#EC4899',
+                        confidence: 0.94
+                    };
+                }
+            }
+
+            // 10. Manipulando Mochila, Cartera o Pertenencias
             for (const bag of bags) {
                 const [bx, by, bw, bh] = bag.bbox;
                 if (bx + bw / 2 >= px - pw * 0.35 && bx + bw / 2 <= px + pw * 1.35 && by >= py + ph * 0.20) {
                     return {
-                        key: 'retrieving_item',
+                        key: 'rummaging_bags',
                         name: `Manipulando ${getObjectDisplayName(bag.class)}`,
-                        color: BEHAVIOR_COLOR_MAP['retrieving_item'] ? BEHAVIOR_COLOR_MAP['retrieving_item'].color : '#A855F7',
+                        color: BEHAVIOR_COLOR_MAP['rummaging_bags'] ? BEHAVIOR_COLOR_MAP['rummaging_bags'].color : '#9333EA',
                         confidence: 0.93
                     };
                 }
             }
 
-            // 8. Manipulando Utensilio (Tenedor, Cuchillo, Cuchara)
+            // 11. Manipulando Utensilio (Tenedor, Cuchillo, Cuchara)
             if (utensils.length > 0) {
                 return {
                     key: 'using_utensil',
@@ -2706,7 +2774,7 @@
                 };
             }
 
-            // 9. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
+            // 12. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
             const heldObjects = predictions.filter(p => !['person', 'chair', 'couch', 'bed', 'dining table'].includes(p.class));
             for (const obj of heldObjects) {
                 const [ox, oy, ow, oh] = obj.bbox;
@@ -2722,9 +2790,31 @@
                 }
             }
 
-            // 10. Conteo Preciso de Dedos y Gestos de Manos con MediaPipe (CUANDO NO SE SOSTIENE UN OBJETO)
+            // 13. Conteo Preciso de Dedos y Gestos de Manos con MediaPipe (CUANDO NO SE SOSTIENE UN OBJETO)
             if (handResults && handResults.length > 0) {
+                // Chequeo de Manos en la Cabeza
                 if (handResults.length >= 2) {
+                    const bothNearHead = handResults.every(h => (h.bbox[1] + h.bbox[3] / 2) <= py + ph * 0.38);
+                    const bothAboveHead = handResults.every(h => (h.bbox[1] + h.bbox[3] / 2) < py);
+
+                    if (bothAboveHead) {
+                        return {
+                            key: 'stretching',
+                            name: BEHAVIOR_COLOR_MAP['stretching'] ? BEHAVIOR_COLOR_MAP['stretching'].name : 'Descanso Activo',
+                            color: BEHAVIOR_COLOR_MAP['stretching'] ? BEHAVIOR_COLOR_MAP['stretching'].color : '#14B8A6',
+                            confidence: 0.94
+                        };
+                    }
+
+                    if (bothNearHead) {
+                        return {
+                            key: 'head_in_hands',
+                            name: BEHAVIOR_COLOR_MAP['head_in_hands'] ? BEHAVIOR_COLOR_MAP['head_in_hands'].name : 'Manos en Cabeza',
+                            color: BEHAVIOR_COLOR_MAP['head_in_hands'] ? BEHAVIOR_COLOR_MAP['head_in_hands'].color : '#C026D3',
+                            confidence: 0.95
+                        };
+                    }
+
                     const totalFingers = handResults[0].count + handResults[1].count;
                     const bothDesc = (totalFingers === 10)
                         ? 'Ambas Manos: 10 Dedos Visibles (Palmas Abiertas)'
@@ -2746,7 +2836,7 @@
                 }
             }
 
-            // 11. Escribiendo en Teclado o Trabajando en Laptop
+            // 14. Escribiendo en Teclado o Trabajando en Laptop
             for (const laptop of laptops) {
                 const [lx, ly, lw, lh] = laptop.bbox;
                 const laptopCenterX = lx + lw / 2;
@@ -2785,7 +2875,7 @@
                 }
             }
 
-            // 12. Leyendo Documento
+            // 15. Leyendo Documento
             for (const book of books) {
                 const [bkx, bky, bkw, bkh] = book.bbox;
                 if (bkx + bkw / 2 >= px - pw * 0.2 && bkx + bkw / 2 <= px + pw * 1.2 && bky >= py + ph * 0.2) {
@@ -2798,11 +2888,12 @@
                 }
             }
 
-            // 13. Dinámica de Movimiento Rápido
+            // 16. Dinámica de Movimiento Rápido
             const nowTime = performance.now();
             let isRestless = false;
             let isWaving = false;
             let isHandsUp = false;
+            let isAggressive = false;
 
             if (previousPersons.length > 0 && (nowTime - previousPersonTime < 400)) {
                 const prev = previousPersons[0].bbox;
@@ -2813,13 +2904,24 @@
                     isHandsUp = true;
                 } else if (deltaX > canvasElement.width * 0.06 && deltaY < canvasElement.height * 0.045) {
                     isWaving = true;
-                } else if (deltaX > canvasElement.width * 0.09 || deltaY > canvasElement.height * 0.09) {
+                } else if (deltaX > canvasElement.width * 0.12 || deltaY > canvasElement.height * 0.12) {
+                    isAggressive = true;
+                } else if (deltaX > canvasElement.width * 0.07 || deltaY > canvasElement.height * 0.07) {
                     isRestless = true;
                 }
             }
 
             previousPersons = personsData;
             previousPersonTime = nowTime;
+
+            if (isAggressive) {
+                return {
+                    key: 'aggressive_motion',
+                    name: BEHAVIOR_COLOR_MAP['aggressive_motion'] ? BEHAVIOR_COLOR_MAP['aggressive_motion'].name : 'Movimiento Brusco',
+                    color: BEHAVIOR_COLOR_MAP['aggressive_motion'] ? BEHAVIOR_COLOR_MAP['aggressive_motion'].color : '#EF4444',
+                    confidence: 0.93
+                };
+            }
 
             if (isHandsUp) {
                 return {
@@ -2848,7 +2950,7 @@
                 };
             }
 
-            // 14. Postura Corporal: Sentado vs De Pie
+            // 17. Postura Corporal: Sentado vs De Pie vs Exponiendo
             const aspectRatio = ph / (pw || 1);
             const isNearSeat = chairs.some(c => {
                 const cx = c.bbox[0] + c.bbox[2] / 2;
@@ -2858,6 +2960,15 @@
                 const tx = t.bbox[0] + t.bbox[2] / 2;
                 return (tx >= px - pw * 0.4 && tx <= px + pw * 1.4);
             });
+
+            if (aspectRatio >= 1.6 && laptops.length > 0 && isWaving) {
+                return {
+                    key: 'presentation',
+                    name: BEHAVIOR_COLOR_MAP['presentation'] ? BEHAVIOR_COLOR_MAP['presentation'].name : 'Exponiendo Presentación',
+                    color: BEHAVIOR_COLOR_MAP['presentation'] ? BEHAVIOR_COLOR_MAP['presentation'].color : '#38BDF8',
+                    confidence: 0.93
+                };
+            }
 
             if ((isNearSeat || isNearDesk) && aspectRatio < 1.55) {
                 return {
@@ -2877,7 +2988,7 @@
                 };
             }
 
-            // 15. Persona Atenta y Enfocada en Cámara
+            // 18. Persona Atenta y Enfocada en Cámara
             return {
                 key: 'attentive',
                 name: BEHAVIOR_COLOR_MAP['attentive'] ? BEHAVIOR_COLOR_MAP['attentive'].name : 'Persona Presente',
@@ -2910,6 +3021,62 @@
         function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts, handResults) {
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+            // Sistema de Colocación Anti-Colisión Dinámica de Etiquetas
+            const occupiedLabelRects = [];
+            function rectsOverlap(r1, r2, pad = 4) {
+                return !(
+                    r1.x + r1.w + pad <= r2.x ||
+                    r2.x + r2.w + pad <= r1.x ||
+                    r1.y + r1.h + pad <= r2.y ||
+                    r2.y + r2.h + pad <= r1.y
+                );
+            }
+            function allocateLabelPosition(anchorBbox, tagW, tagH) {
+                const [bx, by, bw, bh] = anchorBbox;
+                const pad = 6;
+                const cW = canvasElement.width;
+                const cH = canvasElement.height;
+
+                // Candidatos en orden de jerarquía visual
+                const candidates = [
+                    { x: bx, y: by - tagH - 4 },                          // 1: Inmediatamente arriba
+                    { x: bx, y: by + bh + 4 },                           // 2: Inmediatamente abajo
+                    { x: bx, y: by - (tagH * 2) - 8 },                   // 3: Segundo nivel superior
+                    { x: bx, y: by + bh + tagH + 8 },                    // 4: Segundo nivel inferior
+                    { x: bx + 4, y: by + 4 },                            // 5: Interior superior
+                    { x: bx + bw + 4, y: by },                           // 6: Lateral derecho
+                    { x: bx - tagW - 4, y: by },                         // 7: Lateral izquierdo
+                ];
+
+                for (const cand of candidates) {
+                    const clampedX = Math.max(pad, Math.min(cand.x, cW - tagW - pad));
+                    const clampedY = Math.max(pad, Math.min(cand.y, cH - tagH - pad));
+                    const candidateRect = { x: clampedX, y: clampedY, w: tagW, h: tagH };
+
+                    const hasCollision = occupiedLabelRects.some(occ => rectsOverlap(candidateRect, occ, 4));
+                    if (!hasCollision) {
+                        occupiedLabelRects.push(candidateRect);
+                        return { x: clampedX, y: clampedY };
+                    }
+                }
+
+                // Respaldo dinámico: encontrar primer hueco no congestionado
+                let fallbackY = Math.max(pad, Math.min(by - tagH - 4, cH - tagH - pad));
+                let fallbackX = Math.max(pad, Math.min(bx, cW - tagW - pad));
+                let attempts = 0;
+                while (occupiedLabelRects.some(occ => rectsOverlap({ x: fallbackX, y: fallbackY, w: tagW, h: tagH }, occ, 3)) && attempts < 12) {
+                    fallbackY += tagH + 4;
+                    if (fallbackY + tagH > cH - pad) {
+                        fallbackY = pad;
+                        fallbackX = (fallbackX + 35) % (cW - tagW);
+                    }
+                    attempts++;
+                }
+                const finalRect = { x: fallbackX, y: fallbackY, w: tagW, h: tagH };
+                occupiedLabelRects.push(finalRect);
+                return { x: fallbackX, y: fallbackY };
+            }
+
             // 1. Dibuja las cajas delimitadoras de objetos
             predictions.forEach(pred => {
                 const isPerson = pred.class === 'person';
@@ -2940,11 +3107,9 @@
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 1.5;
                 ctx.globalAlpha = 0.75;
-                // Anillo de mira de seguimiento
                 ctx.beginPath();
                 ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
                 ctx.stroke();
-                // Cruz de fijación de objetivo
                 ctx.beginPath();
                 ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy);
                 ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10);
@@ -2963,61 +3128,80 @@
 
                 ctx.font = 'bold 12px "JetBrains Mono", monospace';
                 const textWidth = ctx.measureText(labelText).width;
-                const tagWidth = textWidth + 16;
-                const tagHeight = 22;
+                const tagWidth = textWidth + 24;
+                const tagHeight = 24;
 
-                // Smart bounds clamping: Garantiza que la etiqueta NUNCA se corte en las esquinas o bordes
-                const clampedTagX = Math.max(4, Math.min(x, canvasElement.width - tagWidth - 4));
-                let clampedTagY = y - tagHeight - 3;
-                if (clampedTagY < 4) {
-                    clampedTagY = (y + height + tagHeight + 4 <= canvasElement.height) ? (y + height + 3) : (y + 3);
-                }
-                clampedTagY = Math.max(4, Math.min(clampedTagY, canvasElement.height - tagHeight - 4));
+                const pos = allocateLabelPosition([x, y, width, height], tagWidth, tagHeight);
+                const tagX = pos.x;
+                const tagY = pos.y;
 
                 ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                ctx.shadowBlur = 6;
+                ctx.fillStyle = 'rgba(10, 15, 29, 0.94)';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(tagX, tagY, tagWidth, tagHeight, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                // Barra indicadora lateral izquierda de color
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.roundRect(clampedTagX, clampedTagY, tagWidth, tagHeight, 5);
+                ctx.roundRect(tagX + 2, tagY + 2, 4, tagHeight - 4, 2);
                 ctx.fill();
 
-                ctx.fillStyle = '#0a0f1d';
-                ctx.fillText(labelText, clampedTagX + 8, clampedTagY + 15);
+                // Punto indicador
+                ctx.beginPath();
+                ctx.arc(tagX + 13, tagY + tagHeight / 2, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Texto blanco de máximo contraste y nitidez
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(labelText, tagX + 22, tagY + 16);
                 ctx.restore();
             });
 
-            // 2. Badges individuales de tono de cabello en personas
+            // 2. Badges individuales de tono de cabello en personas (Anti-Colisión Garantizada)
             personsData.forEach(p => {
                 const [px, py, pw, ph] = p.bbox;
                 if (p.hair) {
-                    const hairTag = `Persona #${p.id} • ${p.hair.name}`;
+                    const hairTag = `Cabello #${p.id} • ${p.hair.name}`;
                     ctx.font = 'bold 12px "JetBrains Mono", monospace';
-                    const tagW = ctx.measureText(hairTag).width + 24;
-                    const tagH = 22;
+                    const tagW = ctx.measureText(hairTag).width + 26;
+                    const tagH = 24;
 
-                    // Clamping para que la etiqueta de cabello nunca se corte fuera del canvas
-                    const clampedHairX = Math.max(4, Math.min(px, canvasElement.width - tagW - 4));
-                    let clampedHairY = py - 26;
-                    if (clampedHairY < 4) {
-                        clampedHairY = Math.min(py + ph - tagH - 4, canvasElement.height - tagH - 4);
-                    }
-                    clampedHairY = Math.max(4, Math.min(clampedHairY, canvasElement.height - tagH - 4));
+                    const hPos = allocateLabelPosition([px, py, pw, ph], tagW, tagH);
+                    const clampedHairX = hPos.x;
+                    const clampedHairY = hPos.y;
 
                     ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                    ctx.shadowBlur = 6;
                     ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
                     ctx.strokeStyle = p.hair.color;
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     ctx.roundRect(clampedHairX, clampedHairY, tagW, tagH, 6);
                     ctx.fill();
                     ctx.stroke();
 
+                    // Barra indicadora lateral
                     ctx.fillStyle = p.hair.color;
                     ctx.beginPath();
-                    ctx.arc(clampedHairX + 10, clampedHairY + 11, 4.5, 0, Math.PI * 2);
+                    ctx.roundRect(clampedHairX + 2, clampedHairY + 2, 4, tagH - 4, 2);
                     ctx.fill();
 
+                    // Punto de color de cabello
+                    ctx.beginPath();
+                    ctx.arc(clampedHairX + 13, clampedHairY + tagH / 2, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.shadowBlur = 0;
                     ctx.fillStyle = '#f8fafc';
-                    ctx.fillText(hairTag, clampedHairX + 20, clampedHairY + 15);
+                    ctx.fillText(hairTag, clampedHairX + 22, clampedHairY + 16);
                     ctx.restore();
                 }
             });
@@ -3064,19 +3248,20 @@
                     });
                     ctx.restore();
 
-                    // Etiqueta flotante del conteo de dedos y gesto
+                    // Etiqueta flotante del conteo de dedos y gesto (Anti-Colisión)
                     const [hx, hy, hw, hh] = hand.bbox;
                     const handLabel = `${hand.side}: ${hand.gesture}`;
                     ctx.font = 'bold 12px "JetBrains Mono", monospace';
-                    const hTextW = ctx.measureText(handLabel).width + 18;
-                    const hTagH = 22;
+                    const hTextW = ctx.measureText(handLabel).width + 24;
+                    const hTagH = 24;
 
-                    const clampedHX = Math.max(4, Math.min(hx, canvasElement.width - hTextW - 4));
-                    let clampedHY = hy - hTagH - 4;
-                    if (clampedHY < 4) clampedHY = hy + hh + 4;
-                    clampedHY = Math.max(4, Math.min(clampedHY, canvasElement.height - hTagH - 4));
+                    const handPos = allocateLabelPosition([hx, hy, hw, hh], hTextW, hTagH);
+                    const clampedHX = handPos.x;
+                    const clampedHY = handPos.y;
 
                     ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                    ctx.shadowBlur = 6;
                     ctx.fillStyle = 'rgba(6, 78, 59, 0.94)';
                     ctx.strokeStyle = '#34D399';
                     ctx.lineWidth = 1.5;
@@ -3085,8 +3270,20 @@
                     ctx.fill();
                     ctx.stroke();
 
-                    ctx.fillStyle = '#ECFDF5';
-                    ctx.fillText(handLabel, clampedHX + 9, clampedHY + 15);
+                    // Barra indicadora esmeralda
+                    ctx.fillStyle = '#34D399';
+                    ctx.beginPath();
+                    ctx.roundRect(clampedHX + 2, clampedHY + 2, 4, hTagH - 4, 2);
+                    ctx.fill();
+
+                    // Punto esmeralda
+                    ctx.beginPath();
+                    ctx.arc(clampedHX + 13, clampedHY + hTagH / 2, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(handLabel, clampedHX + 22, clampedHY + 16);
                     ctx.restore();
                 });
             }
@@ -3098,7 +3295,8 @@
                 const isGesture = (behavior.key.includes('hands_up') || behavior.key.includes('waving') || behavior.key.includes('thumbs_up') || behavior.key.includes('thinking') || behavior.key.includes('face_touch') || behavior.key === 'hand_fingers' || behavior.key === 'both_hands');
                 const isCall = (behavior.key === 'phone_call' || behavior.key === 'talking_phone');
                 const isEating = (behavior.key === 'eating_food');
-                const prefix = isCall ? 'LLAMADA EN VIVO' : (isEating ? 'CONSUMO EN VIVO' : (isGesture ? 'GESTO DETECTADO' : 'ACTIVIDAD EN VIVO'));
+                const isRisk = ['handling_sharp', 'person_fallen', 'face_hidden', 'aggressive_motion', 'unattended_object'].includes(behavior.key);
+                const prefix = isRisk ? 'ALERTA EN VIVO' : (isCall ? 'LLAMADA EN VIVO' : (isEating ? 'CONSUMO EN VIVO' : (isGesture ? 'GESTO DETECTADO' : 'ACTIVIDAD EN VIVO')));
                 const bannerText = `${prefix}: ${behavior.name.toUpperCase()}`;
 
                 ctx.font = 'bold 13px "JetBrains Mono", monospace';
@@ -3132,8 +3330,6 @@
             return `${horiz}-${vert}`;
         }
 
-        // ==========================================
-        // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
         // ==========================================
         // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
         // ==========================================
