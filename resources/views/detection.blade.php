@@ -115,7 +115,7 @@
                         </h1>
                         <span id="aiEvolutionBadge" class="inline-flex items-center gap-1.5 text-[10px] sm:text-xs px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-mono-code font-medium shadow-sm">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span id="aiEvolutionBadgeText">Visión IA Pro (Gen 1)</span>
+                            <span id="aiEvolutionBadgeText">Visión IA Pro</span>
                         </span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-slate-400 hidden md:block">Detección de Objetos del Entorno, Multi-Persona, Gestos y Tono de Cabello con WebSockets</p>
@@ -178,15 +178,15 @@
                     <span class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">Estado de Conexión y Servicios de Inteligencia Artificial:</span>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                         <!-- AI Model Status Badge -->
-                        <div id="aiModelBadge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                            <span id="aiModelText" class="truncate font-semibold">IA: Monitoreo 24/7 (Alta Precisión)</span>
+                        <div id="aiModelBadge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-mono-code shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                            <span id="aiModelText" class="truncate font-semibold">IA: Inicializando...</span>
                         </div>
 
                         <!-- WebSocket Status Badge -->
-                        <div id="wsStatusBadge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                            <span id="wsStatusText" class="truncate font-semibold">WebSocket: Conectado (Reverb)</span>
+                        <div id="wsStatusBadge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-mono-code shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                            <span id="wsStatusText" class="truncate font-semibold">WebSocket: Conectando...</span>
                         </div>
 
                         <!-- Camera Status Badge -->
@@ -196,9 +196,9 @@
                         </div>
 
                         <!-- AI Evolution Status Card -->
-                        <div id="aiEvolutionCard" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                            <span id="aiEvolutionText" class="truncate font-semibold">Evolución: Gen 1 (27 Conceptos)</span>
+                        <div id="aiEvolutionCard" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-800 bg-slate-800/80 text-slate-400 text-xs font-mono-code shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0"></span>
+                            <span id="aiEvolutionText" class="truncate font-semibold">Evolución: Inicializando...</span>
                         </div>
                     </div>
                 </div>
@@ -1703,21 +1703,27 @@
                 });
 
                 pusherInstance.connection.bind('connected', () => {
-                    badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
-                    badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                    badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm';
+                    badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
                     statusText.innerText = 'WebSocket: Conectado (Reverb)';
                 });
 
                 pusherInstance.connection.bind('connecting', () => {
-                    badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-mono-code';
-                    badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                    badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-mono-code shadow-sm';
+                    badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0';
                     statusText.innerText = 'WebSocket: Conectando...';
                 });
 
                 pusherInstance.connection.bind('disconnected', () => {
-                    badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code';
-                    badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-rose-400';
+                    badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code shadow-sm';
+                    badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-rose-400 shrink-0';
                     statusText.innerText = 'WebSocket: Desconectado';
+                });
+
+                pusherInstance.connection.bind('error', () => {
+                    badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code shadow-sm';
+                    badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-rose-400 shrink-0';
+                    statusText.innerText = 'WebSocket: Error de Conexión';
                 });
 
                 detectionChannel = pusherInstance.subscribe('detections');
@@ -1726,7 +1732,9 @@
                 });
 
             } catch (err) {
-                statusText.innerText = 'WebSocket: Local Fallback';
+                badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-800 bg-slate-800/80 text-slate-400 text-xs font-mono-code shadow-sm';
+                badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0';
+                statusText.innerText = 'WebSocket: Modo Local';
             }
         }
 
@@ -2337,6 +2345,7 @@
                         };
                     }
                 }
+                this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
                 this.updateEvolutionBadgeUI();
             }
 
@@ -2425,14 +2434,23 @@
             }
 
             updateEvolutionBadgeUI() {
-                const el = document.getElementById('aiEvolutionBadge');
-                if (el) {
-                    el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span id="aiEvolutionBadgeText">Visión IA Pro (Gen ${this.stats.generation})</span>`;
-                }
+                this.stats.learnedConcepts = Object.keys(this.knowledgeTaxonomy).length;
+
                 const card = document.getElementById('aiEvolutionText');
-                if (card) {
+                const cardBadge = document.getElementById('aiEvolutionCard');
+                if (card && cardBadge) {
+                    cardBadge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm';
+                    if (cardBadge.firstElementChild) cardBadge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0';
                     card.innerText = `Evolución: Gen ${this.stats.generation} (${this.stats.learnedConcepts} Conceptos)`;
                 }
+
+                const badgeText = document.getElementById('aiEvolutionBadgeText');
+                if (badgeText) {
+                    badgeText.innerText = this.stats.generation > 1
+                        ? `Visión IA Pro (Gen ${this.stats.generation})`
+                        : 'Visión IA Pro';
+                }
+
                 const veEvo = document.getElementById('veEvolutionDisplay');
                 if (veEvo) {
                     veEvo.innerText = `Gen ${this.stats.generation} • ${this.stats.learnedConcepts} Conceptos`;
@@ -2621,21 +2639,40 @@
             const placeholder = document.getElementById('cameraPlaceholder');
             const btnPlayText = document.getElementById('btnPlayText');
             const videoHud = document.getElementById('videoHud');
+            const aiText = document.getElementById('aiModelText');
 
             if (active) {
-                badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
-                badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-                statusText.innerText = 'Cámara: Activa';
-                placeholder.classList.add('opacity-0', 'pointer-events-none');
-                btnPlayText.innerText = 'Pausar Cámara';
-                videoHud.classList.remove('hidden');
+                const track = (videoElement && videoElement.srcObject) ? videoElement.srcObject.getVideoTracks()[0] : null;
+                const camLabel = (track && track.label) ? track.label : 'En Vivo';
+                const dims = (videoElement && videoElement.videoWidth) ? ` (${videoElement.videoWidth}x${videoElement.videoHeight})` : '';
+
+                if (badge) {
+                    badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm';
+                    if (badge.firstElementChild) badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0';
+                }
+                if (statusText) statusText.innerText = `Cámara: ${camLabel}${dims}`;
+
+                if (aiText) {
+                    aiText.innerText = 'IA: Inferencia en Vivo (60 FPS)';
+                }
+
+                if (placeholder) placeholder.classList.add('opacity-0', 'pointer-events-none');
+                if (btnPlayText) btnPlayText.innerText = 'Pausar Cámara';
+                if (videoHud) videoHud.classList.remove('hidden');
             } else {
-                badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-800/80 text-slate-400 text-xs font-mono-code';
-                badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-slate-500';
-                statusText.innerText = 'Cámara: Inactiva';
-                placeholder.classList.remove('opacity-0', 'pointer-events-none');
-                btnPlayText.innerText = 'Iniciar Detección';
-                videoHud.classList.add('hidden');
+                if (badge) {
+                    badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-800 bg-slate-800/80 text-slate-400 text-xs font-mono-code shadow-sm';
+                    if (badge.firstElementChild) badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0';
+                }
+                if (statusText) statusText.innerText = 'Cámara: Inactiva';
+
+                if (aiText) {
+                    aiText.innerText = cocoModel ? 'IA: Modelos Listos (En Espera)' : 'IA: Inicializando...';
+                }
+
+                if (placeholder) placeholder.classList.remove('opacity-0', 'pointer-events-none');
+                if (btnPlayText) btnPlayText.innerText = 'Iniciar Detección';
+                if (videoHud) videoHud.classList.add('hidden');
                 document.getElementById('kpiPersonsCount').innerText = '0 personas';
                 document.getElementById('kpiHairTone').innerText = 'No analizado';
                 document.getElementById('kpiBehavior').innerText = 'En espera';
@@ -2770,13 +2807,13 @@
                     }
                 }
                 
-                badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
-                badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-                text.innerText = 'IA: Monitoreo 24/7 (Alta Precisión)';
+                badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code shadow-sm';
+                badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
+                text.innerText = isCameraActive ? 'IA: Inferencia Activa (60 FPS)' : 'IA: Modelos Listos (COCO + Pose + Manos)';
             } catch (e) {
-                badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code';
-                badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-rose-400';
-                text.innerText = 'IA: Error al cargar';
+                badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code shadow-sm';
+                badge.firstElementChild.className = 'w-2.5 h-2.5 rounded-full bg-rose-400 shrink-0';
+                text.innerText = 'IA: Error de Carga';
             } finally {
                 isModelLoading = false;
             }
@@ -2873,6 +2910,12 @@
                 frameCount = 0;
                 lastFrameTime = now;
                 document.getElementById('fpsCounter').innerText = `${fps} FPS`;
+                if (isCameraActive) {
+                    const aiText = document.getElementById('aiModelText');
+                    if (aiText) {
+                        aiText.innerText = `IA: Inferencia Activa (${liveRenderPredictions.length} obj • ${fps} FPS)`;
+                    }
+                }
             }
 
             if (isCameraActive) {
