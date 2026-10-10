@@ -815,11 +815,10 @@
         const recordingCanvas = document.createElement('canvas');
         const recordingCtx = recordingCanvas.getContext('2d', { alpha: false });
 
-        // Multi-Target Real-Time Tracker (Seguimiento Continuo de Personas y Objetos)
+        // Multi-Target Real-Time Tracker (Seguimiento Continuo e Instantáneo de Personas y Objetos)
         let activeTracks = [];
         let nextTrackId = 1;
-        const TRACK_MAX_MISSED_CYCLES = 12; // Mantiene el seguimiento ~0.8s si la IA parpadea
-        const TRACK_LERP_FACTOR = 0.38; // Desplazamiento fluido para seguir el movimiento a 60 FPS
+        const TRACK_LERP_FACTOR = 0.75; // Desplazamiento reactivo de alta velocidad para seguir el movimiento a 60 FPS
 
         function computeIoU(boxA, boxB) {
             const xA = Math.max(boxA[0], boxB[0]);
@@ -847,9 +846,15 @@
         }
 
         function updateObjectTracks(newPredictions) {
+            // Si la IA no detecta nada en este frame, limpiar de inmediato para información 100% en tiempo real
+            if (!newPredictions || newPredictions.length === 0) {
+                activeTracks = [];
+                return;
+            }
+
             const matchedDetections = new Set();
 
-            // 1. Asignar detecciones a tracks existentes por clase, IoU y proximidad
+            // 1. Asignar detecciones a tracks existentes por clase, proximidad espacial e IoU
             for (const track of activeTracks) {
                 let bestMatchIndex = -1;
                 let bestMatchScore = 0;
@@ -865,11 +870,11 @@
                     const normDist = dist / maxDim;
 
                     let score = iou;
-                    if (normDist < 0.75) {
-                        score = Math.max(score, 0.45 - (normDist * 0.35));
+                    if (normDist < 1.5) {
+                        score = Math.max(score, 0.50 - (normDist * 0.25));
                     }
 
-                    if (score > 0.12 && score > bestMatchScore) {
+                    if (score > 0.10 && score > bestMatchScore) {
                         bestMatchScore = score;
                         bestMatchIndex = i;
                     }
@@ -879,32 +884,19 @@
                     const pred = newPredictions[bestMatchIndex];
                     matchedDetections.add(bestMatchIndex);
 
-                    // Calcular vector de velocidad del movimiento
-                    const dx = pred.bbox[0] - track.targetBbox[0];
-                    const dy = pred.bbox[1] - track.targetBbox[1];
-                    const dw = pred.bbox[2] - track.targetBbox[2];
-                    const dh = pred.bbox[3] - track.targetBbox[3];
-
-                    track.velocity = [
-                        track.velocity[0] * 0.3 + dx * 0.7,
-                        track.velocity[1] * 0.3 + dy * 0.7,
-                        track.velocity[2] * 0.3 + dw * 0.7,
-                        track.velocity[3] * 0.3 + dh * 0.7
-                    ];
+                    // Reacción instantánea: si hay salto rápido, ajustar directamente la posición
+                    const jumpDist = getCentroidDistance(track.bbox, pred.bbox);
+                    if (jumpDist > 90) {
+                        track.bbox = [...pred.bbox];
+                    }
 
                     track.targetBbox = [...pred.bbox];
-                    track.score = Math.max(track.score * 0.15 + pred.score * 0.85, pred.score);
+                    track.score = pred.score;
                     track.missedCycles = 0;
                     track.lastSeen = performance.now();
                 } else {
-                    // Predecir posición con velocidad para mantener seguimiento ininterrumpido
+                    // Marcar como perdido en este frame
                     track.missedCycles = (track.missedCycles || 0) + 1;
-                    track.targetBbox[0] += (track.velocity[0] || 0) * 0.5;
-                    track.targetBbox[1] += (track.velocity[1] || 0) * 0.5;
-                    track.targetBbox[2] += (track.velocity[2] || 0) * 0.2;
-                    track.targetBbox[3] += (track.velocity[3] || 0) * 0.2;
-                    track.targetBbox[0] = Math.max(0, Math.min(canvasElement.width - 20, track.targetBbox[0]));
-                    track.targetBbox[1] = Math.max(0, Math.min(canvasElement.height - 20, track.targetBbox[1]));
                 }
             }
 
@@ -927,8 +919,8 @@
                 }
             }
 
-            // 3. Filtrar tracks que excedan el límite de tolerancia
-            activeTracks = activeTracks.filter(t => (t.missedCycles || 0) <= TRACK_MAX_MISSED_CYCLES);
+            // 3. Purga estricta en tiempo real: eliminar cualquier objeto ausente (tolerancia 1 ciclo para evitar parpadeo)
+            activeTracks = activeTracks.filter(t => (t.missedCycles || 0) <= 1);
         }
 
         // High-Precision Panoramic AI Inference Canvas
@@ -1672,6 +1664,11 @@
             if (isRecording) stopRecording();
             isCameraActive = false;
             activeTracks = [];
+            cachedPredictions = [];
+            cachedPersonsData = [];
+            cachedObjectContexts = {};
+            cachedHandResults = [];
+            cachedBehavior = null;
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             if (inferenceTimer) clearTimeout(inferenceTimer);
             if (videoElement.srcObject) {
@@ -1772,7 +1769,7 @@
                     cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
                 }
 
-                // Inicializar MediaPipe Hands para detección de manos y conteo de dedos
+                // Inicializar MediaPipe Hands para detección de manos y conteo de dedos ultra veloz
                 if (window.Hands && !mediaPipeHands && !isHandsModelLoading) {
                     try {
                         isHandsModelLoading = true;
@@ -1781,12 +1778,19 @@
                         });
                         mediaPipeHands.setOptions({
                             maxNumHands: 2,
-                            modelComplexity: 1,
-                            minDetectionConfidence: 0.5,
-                            minTrackingConfidence: 0.5
+                            modelComplexity: 0, // Modelo Lite optimizado para 60 FPS en tiempo real
+                            minDetectionConfidence: 0.45,
+                            minTrackingConfidence: 0.45
                         });
                         mediaPipeHands.onResults((results) => {
-                            cachedHandResults = analyzeHandResults(results);
+                            lastHandsResultTime = performance.now();
+                            if (!results || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                                cachedHandResults = [];
+                            } else {
+                                cachedHandResults = analyzeHandResults(results);
+                            }
+                            // Actualización instantánea del comportamiento cuando cambian los gestos de las manos
+                            cachedBehavior = analyzeGesturesAndBehavior(cachedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults);
                         });
                     } catch (hErr) {
                         console.warn('MediaPipe Hands load notice:', hErr);
@@ -1797,7 +1801,7 @@
                 
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-emerald-400';
-                text.innerText = 'IA: Alta Precisión (HD + Manos)';
+                text.innerText = 'IA: Alta Precisión (Tiempo Real)';
             } catch (e) {
                 badge.className = 'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-mono-code';
                 badge.firstElementChild.className = 'w-2 h-2 rounded-full bg-rose-400';
@@ -1807,6 +1811,8 @@
             }
         }
 
+        let lastHandsResultTime = 0;
+
         function startDetectionEngine() {
             if (!cocoModel) loadDetectionModel();
             if (videoElement.videoWidth > 0) {
@@ -1814,10 +1820,13 @@
                 canvasElement.height = videoElement.videoHeight;
             }
             renderLoop();
-            inferenceScheduler();
+            scheduleNextInference();
+            scheduleNextHands();
         }
 
+        // ==========================================
         // 1. RENDER LOOP: Runs at full 60 FPS purely rendering latest cached overlay
+        // ==========================================
         function renderLoop() {
             if (!isCameraActive || !videoElement || videoElement.readyState < 2) {
                 if (isCameraActive) animationFrameId = requestAnimationFrame(renderLoop);
@@ -1829,7 +1838,12 @@
                 canvasElement.height = videoElement.videoHeight;
             }
 
-            // Interpolación de movimiento a 60 FPS (Seguimiento continuo de personas y objetos)
+            // Expiración inmediata de manos si salieron del rango de visión (>220ms sin detección)
+            if (performance.now() - lastHandsResultTime > 220) {
+                cachedHandResults = [];
+            }
+
+            // Interpolación de movimiento a 60 FPS de alta velocidad (Seguimiento continuo)
             for (const track of activeTracks) {
                 track.bbox[0] += (track.targetBbox[0] - track.bbox[0]) * TRACK_LERP_FACTOR;
                 track.bbox[1] += (track.targetBbox[1] - track.bbox[1]) * TRACK_LERP_FACTOR;
@@ -1865,23 +1879,50 @@
             }
         }
 
-        // 2. INFERENCE SCHEDULER: Autonomous zero-millisecond loop for instant detection
+        // ==========================================
+        // 2. HANDS & FINGER TRACKING ENGINE (DESACOPLADO A 60 FPS)
+        // ==========================================
+        function scheduleNextHands() {
+            if (!isCameraActive) return;
+            if (videoElement && 'requestVideoFrameCallback' in videoElement) {
+                videoElement.requestVideoFrameCallback(() => handsScheduler());
+            } else {
+                requestAnimationFrame(() => handsScheduler());
+            }
+        }
+
+        async function handsScheduler() {
+            if (!isCameraActive) return;
+            if (mediaPipeHands && !isHandsInferring && videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0) {
+                isHandsInferring = true;
+                try {
+                    await mediaPipeHands.send({ image: videoElement });
+                } catch (mhErr) {
+                    // Hand tracking notice
+                } finally {
+                    isHandsInferring = false;
+                }
+            }
+            if (isCameraActive) {
+                scheduleNextHands();
+            }
+        }
+
+        // ==========================================
+        // 3. OBJECT & PERSON INFERENCE SCHEDULER (ALTA VELOCIDAD)
+        // ==========================================
         function scheduleNextInference() {
             if (!isCameraActive) return;
             if (videoElement && 'requestVideoFrameCallback' in videoElement) {
-                videoElement.requestVideoFrameCallback(() => {
-                    inferenceScheduler();
-                });
+                videoElement.requestVideoFrameCallback(() => inferenceScheduler());
             } else {
-                requestAnimationFrame(() => {
-                    inferenceScheduler();
-                });
+                requestAnimationFrame(() => inferenceScheduler());
             }
         }
 
         async function inferenceScheduler() {
             if (!isCameraActive) return;
-            if (cocoModel && !isInferring && videoElement && videoElement.readyState >= 2) {
+            if (cocoModel && !isInferring && videoElement && videoElement.readyState >= 2 && videoElement.videoWidth > 0) {
                 await runFastInference();
             }
             if (isCameraActive) {
@@ -1889,69 +1930,63 @@
             }
         }
 
-        // 3. FAST HIGH-PRECISION INFERENCE: Detects far-away and subtle objects instantly across full environment
+        // 4. FAST DIRECT HARDWARE INFERENCE: Detecta objetos y personas de inmediato sin latencia
         async function runFastInference() {
             isInferring = true;
             const startTime = performance.now();
 
             try {
-                // Adaptive HD canvas maintaining camera aspect ratio (up to 1280x720) for crystal clear scene detection
-                const vW = videoElement.videoWidth || 1280;
-                const vH = videoElement.videoHeight || 720;
-                const targetW = Math.min(1280, vW);
-                const targetH = Math.round(targetW * (vH / vW));
-                if (inferCanvas.width !== targetW || inferCanvas.height !== targetH) {
-                    inferCanvas.width = targetW;
-                    inferCanvas.height = targetH;
+                // Inferencia por aceleración de hardware directa sobre el video
+                let rawPredictions = [];
+                try {
+                    rawPredictions = await cocoModel.detect(videoElement, 35, minConfidence);
+                } catch (vErr) {
+                    // Respaldo de alta velocidad si el controlador requiere canvas
+                    const vW = videoElement.videoWidth || 640;
+                    const vH = videoElement.videoHeight || 480;
+                    const targetW = 640;
+                    const targetH = Math.round(targetW * (vH / vW));
+                    if (inferCanvas.width !== targetW || inferCanvas.height !== targetH) {
+                        inferCanvas.width = targetW;
+                        inferCanvas.height = targetH;
+                    }
+                    inferCtx.drawImage(videoElement, 0, 0, inferCanvas.width, inferCanvas.height);
+                    rawPredictions = await cocoModel.detect(inferCanvas, 35, minConfidence);
                 }
 
-                // High-fidelity frame capture preserving distant and peripheral details
-                inferCtx.drawImage(videoElement, 0, 0, inferCanvas.width, inferCanvas.height);
-
-                // Run neural inference with high box capacity and low confidence threshold for full room scanning
-                const rawPredictions = await cocoModel.detect(inferCanvas, 50, minConfidence);
-
-                // Re-project coordinates onto full screen canvas
-                const scaleX = canvasElement.width / inferCanvas.width;
-                const scaleY = canvasElement.height / inferCanvas.height;
-
-                const scaled = rawPredictions.map(p => ({
-                    class: p.class,
-                    score: p.score,
-                    bbox: [
-                        p.bbox[0] * scaleX,
-                        p.bbox[1] * scaleY,
-                        p.bbox[2] * scaleX,
-                        p.bbox[3] * scaleY
-                    ]
-                }));
+                // Normalización de escala según coordenadas del lienzo
+                let scaled = rawPredictions;
+                if (inferCanvas.width > 0 && rawPredictions.length > 0 && rawPredictions[0].bbox[0] <= inferCanvas.width && inferCanvas.width !== canvasElement.width) {
+                    const scaleX = canvasElement.width / inferCanvas.width;
+                    const scaleY = canvasElement.height / inferCanvas.height;
+                    scaled = rawPredictions.map(p => ({
+                        class: p.class,
+                        score: p.score,
+                        bbox: [
+                            p.bbox[0] * scaleX,
+                            p.bbox[1] * scaleY,
+                            p.bbox[2] * scaleX,
+                            p.bbox[3] * scaleY
+                        ]
+                    }));
+                }
 
                 // Actualizar el motor de seguimiento multi-objetivo continuo
                 updateObjectTracks(scaled);
 
-                // Proyectar los tracks seguidos a la caché de predicciones y personas
-                const trackedPredictions = activeTracks.map(t => ({
-                    id: t.id,
-                    class: t.class,
-                    score: t.score,
-                    bbox: t.bbox
-                }));
-
-                // Ejecutar detección precisa de manos y conteo de dedos con MediaPipe
-                if (mediaPipeHands && !isHandsInferring && videoElement && videoElement.readyState >= 2) {
-                    isHandsInferring = true;
-                    try {
-                        await mediaPipeHands.send({ image: videoElement });
-                    } catch (mhErr) {
-                        // Hand tracking notice
-                    } finally {
-                        isHandsInferring = false;
-                    }
-                }
+                // Proyectar ÚNICAMENTE los tracks activos en este instante (sin fantasmas ni retrasos)
+                const trackedPredictions = activeTracks
+                    .filter(t => (t.missedCycles || 0) === 0)
+                    .map(t => ({
+                        id: t.id,
+                        class: t.class,
+                        score: t.score,
+                        bbox: t.bbox
+                    }));
 
                 cachedPredictions = trackedPredictions;
-                cachedPersonsData = analyzePersonsAndHair(activeTracks);
-                cachedObjectContexts = enrichEnvironmentalContext(trackedPredictions, cachedPersonsData);
+                cachedPersonsData = analyzePersonsAndHair(trackedPredictions);
+                cachedObjectContexts = enrichEnvironmentalContext(trackedPredictions, cachedPersonsData, cachedHandResults);
                 cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults);
 
                 const infDuration = Math.round(performance.now() - startTime);
@@ -1959,9 +1994,9 @@
 
                 processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults);
 
-                // Instant UI feedback (every 80ms)
+                // Actualización instantánea en tiempo real de KPIs y Radar
                 const now = performance.now();
-                if (now - lastDomUpdateTime > 80) {
+                if (now - lastDomUpdateTime > 50) {
                     lastDomUpdateTime = now;
                     updateKPIsAndRadar(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults);
                 }
@@ -2202,7 +2237,7 @@
         // ENVIRONMENTAL & SPATIAL CONTEXT ENGINE
         // Analyzes topology of EVERY object in the scene relative to people and furniture
         // ==========================================
-        function enrichEnvironmentalContext(predictions, personsData) {
+        function enrichEnvironmentalContext(predictions, personsData, handResults) {
             const contextMap = {};
             const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
             const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch' || p.class === 'bed');
@@ -2218,36 +2253,60 @@
                 const ocy = oy + oh / 2;
                 let ctxTag = 'En entorno';
 
-                // 1. Interacción directa con personas detectadas
-                for (const person of personsData) {
-                    const [px, py, pw, ph] = person.bbox;
-                    const inPersonPerimeter = (ocx >= px - pw * 0.35 && ocx <= px + pw * 1.35 && ocy >= py && ocy <= py + ph * 1.15);
-
-                    if (inPersonPerimeter) {
-                        if (pred.class === 'cell phone') {
-                            ctxTag = (ocy <= py + ph * 0.40) ? 'En oreja • Llamada activa' : 'En mano • Manipulando celular';
-                        } else if (fruitClasses.includes(pred.class)) {
-                            ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando fruta/verdura';
-                        } else if (mealClasses.includes(pred.class)) {
-                            ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando alimento';
-                        } else if (utensilClasses.includes(pred.class)) {
-                            ctxTag = 'En mano • Usando cubierto';
-                        } else if (pred.class === 'bottle' || pred.class === 'cup' || pred.class === 'wine glass') {
-                            ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo • Bebiendo' : 'En mano';
-                        } else if (pred.class === 'laptop' || pred.class === 'keyboard' || pred.class === 'mouse') {
-                            ctxTag = 'En uso activo';
-                        } else if (pred.class === 'book') {
-                            ctxTag = 'En mano • Lectura';
-                        } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase') {
-                            ctxTag = 'Interacción • Sacando/guardando';
-                        } else {
-                            ctxTag = 'En mano • Sostenido';
+                // 1. Proximidad directa con manos detectadas (MediaPipe)
+                if (handResults && handResults.length > 0) {
+                    for (const hand of handResults) {
+                        const [hx, hy, hw, hh] = hand.bbox;
+                        const hcx = hx + hw / 2;
+                        const hcy = hy + hh / 2;
+                        const distToHand = Math.hypot(ocx - hcx, ocy - hcy);
+                        if (distToHand < Math.max(hw, hh, ow, oh) * 1.5) {
+                            if (fruitClasses.includes(pred.class)) {
+                                ctxTag = 'En mano • Mostrando fruta/verdura';
+                            } else if (mealClasses.includes(pred.class)) {
+                                ctxTag = 'En mano • Mostrando alimento';
+                            } else if (pred.class === 'cell phone') {
+                                ctxTag = 'En mano • Sosteniendo celular';
+                            } else {
+                                ctxTag = 'En mano • Mostrando a la cámara';
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
 
-                // 2. Apoyo sobre mobiliario de escritorio / mesa
+                // 2. Interacción directa con personas detectadas
+                if (ctxTag === 'En entorno') {
+                    for (const person of personsData) {
+                        const [px, py, pw, ph] = person.bbox;
+                        const inPersonPerimeter = (ocx >= px - pw * 0.35 && ocx <= px + pw * 1.35 && ocy >= py && ocy <= py + ph * 1.15);
+
+                        if (inPersonPerimeter) {
+                            if (pred.class === 'cell phone') {
+                                ctxTag = (ocy <= py + ph * 0.40) ? 'En oreja • Llamada activa' : 'En mano • Manipulando celular';
+                            } else if (fruitClasses.includes(pred.class)) {
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando fruta/verdura';
+                            } else if (mealClasses.includes(pred.class)) {
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo activo • Comiendo' : 'En mano • Mostrando alimento';
+                            } else if (utensilClasses.includes(pred.class)) {
+                                ctxTag = 'En mano • Usando cubierto';
+                            } else if (pred.class === 'bottle' || pred.class === 'cup' || pred.class === 'wine glass') {
+                                ctxTag = (ocy <= py + ph * 0.52) ? 'Consumo • Bebiendo' : 'En mano';
+                            } else if (pred.class === 'laptop' || pred.class === 'keyboard' || pred.class === 'mouse') {
+                                ctxTag = 'En uso activo';
+                            } else if (pred.class === 'book') {
+                                ctxTag = 'En mano • Lectura';
+                            } else if (pred.class === 'backpack' || pred.class === 'handbag' || pred.class === 'suitcase') {
+                                ctxTag = 'Interacción • Sacando/guardando';
+                            } else {
+                                ctxTag = 'En mano • Sostenido';
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Apoyo sobre mobiliario de escritorio / mesa
                 if (ctxTag === 'En entorno') {
                     for (const table of tables) {
                         const [tx, ty, tw, th] = table.bbox;
@@ -2258,7 +2317,7 @@
                     }
                 }
 
-                // 3. Ubicación sobre asientos o sofás
+                // 4. Ubicación sobre asientos o sofás
                 if (ctxTag === 'En entorno') {
                     for (const chair of chairs) {
                         const [cx, cy, cw, ch] = chair.bbox;
@@ -2269,7 +2328,7 @@
                     }
                 }
 
-                // 4. Ubicación cuadrante general en el entorno
+                // 5. Ubicación cuadrante general en el entorno
                 if (ctxTag === 'En entorno') {
                     const zone = getPositionDescription(pred.bbox);
                     ctxTag = `Entorno • ${zone}`;
@@ -2287,9 +2346,63 @@
         // ==========================================
         function analyzeGesturesAndBehavior(predictions, personsData, objectContexts, handResults) {
             const personCount = personsData.length;
+            const fruitClasses = ['apple', 'banana', 'orange', 'broccoli', 'carrot'];
+            const mealClasses = ['sandwich', 'pizza', 'hot dog', 'donut', 'cake', 'bowl'];
+            const utensilClasses = ['fork', 'knife', 'spoon'];
 
             if (personCount === 0) {
-                // Si no hay cuerpo completo pero sí hay manos en escena (ej. cámara cerca de manos)
+                // Caso 1: Objeto mostrado en primer plano a la cámara (sin cuerpo completo en escena)
+                const fruitsVeg = predictions.filter(p => fruitClasses.includes(p.class));
+                if (fruitsVeg.length > 0) {
+                    return {
+                        key: 'showing_fruit_veg',
+                        name: `Mostrando Fruta / Verdura: ${getObjectDisplayName(fruitsVeg[0].class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_fruit_veg'] ? BEHAVIOR_COLOR_MAP['showing_fruit_veg'].color : '#84CC16',
+                        confidence: 0.94
+                    };
+                }
+
+                const meals = predictions.filter(p => mealClasses.includes(p.class));
+                if (meals.length > 0) {
+                    return {
+                        key: 'showing_food',
+                        name: `Mostrando Alimento: ${getObjectDisplayName(meals[0].class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_food'] ? BEHAVIOR_COLOR_MAP['showing_food'].color : '#EAB308',
+                        confidence: 0.94
+                    };
+                }
+
+                const phones = predictions.filter(p => p.class === 'cell phone');
+                if (phones.length > 0) {
+                    return {
+                        key: 'holding_phone',
+                        name: 'Mostrando / Manipulando Celular',
+                        color: BEHAVIOR_COLOR_MAP['holding_phone'] ? BEHAVIOR_COLOR_MAP['holding_phone'].color : '#F59E0B',
+                        confidence: 0.94
+                    };
+                }
+
+                const utensils = predictions.filter(p => utensilClasses.includes(p.class));
+                if (utensils.length > 0) {
+                    return {
+                        key: 'using_utensil',
+                        name: `Mostrando Cubierto [${getObjectDisplayName(utensils[0].class)}]`,
+                        color: BEHAVIOR_COLOR_MAP['using_utensil'] ? BEHAVIOR_COLOR_MAP['using_utensil'].color : '#EC4899',
+                        confidence: 0.92
+                    };
+                }
+
+                const otherObjs = predictions.filter(p => !['chair', 'couch', 'bed', 'dining table'].includes(p.class));
+                if (otherObjs.length > 0) {
+                    return {
+                        key: 'showing_object',
+                        name: `Mostrando a la Cámara: ${getObjectDisplayName(otherObjs[0].class)}`,
+                        color: BEHAVIOR_COLOR_MAP['showing_object'] ? BEHAVIOR_COLOR_MAP['showing_object'].color : '#38BDF8',
+                        confidence: 0.92
+                    };
+                }
+
+                // Caso 2: Manos mostradas en primer plano a la cámara (conteo de dedos)
                 if (handResults && handResults.length > 0) {
                     if (handResults.length >= 2) {
                         const totalFingers = handResults[0].count + handResults[1].count;
@@ -2326,9 +2439,7 @@
             const chairs = predictions.filter(p => p.class === 'chair' || p.class === 'couch');
             const tables = predictions.filter(p => p.class === 'dining table' || p.class === 'bench');
             const bags = predictions.filter(p => p.class === 'backpack' || p.class === 'handbag' || p.class === 'suitcase');
-            const utensils = predictions.filter(p => p.class === 'fork' || p.class === 'knife' || p.class === 'spoon');
-            const fruitClasses = ['apple', 'banana', 'orange', 'broccoli', 'carrot'];
-            const mealClasses = ['sandwich', 'pizza', 'hot dog', 'donut', 'cake', 'bowl'];
+            const utensils = predictions.filter(p => utensilClasses.includes(p.class));
 
             // 1. Detección de Grupo / Múltiples Personas
             if (personCount >= 2) {
@@ -2356,7 +2467,7 @@
             const mainPerson = personsData[0];
             const [px, py, pw, ph] = mainPerson.bbox;
 
-            // 2. Comiendo Frutas, Verduras o Alimentos (MÁXIMA PRIORIDAD)
+            // 2. Comiendo Frutas, Verduras o Alimentos (MÁXIMA PRIORIDAD CUANDO ESTÁ CERCA DE LA BOCA)
             const foods = predictions.filter(p => [...fruitClasses, ...mealClasses].includes(p.class));
             for (const food of foods) {
                 const [fx, fy, fw, fh] = food.bbox;
@@ -2401,35 +2512,11 @@
                 }
             }
 
-            // 4. Conteo Preciso de Dedos y Gestos de Manos con MediaPipe (MÁXIMA PRIORIDAD)
-            if (handResults && handResults.length > 0) {
-                if (handResults.length >= 2) {
-                    const totalFingers = handResults[0].count + handResults[1].count;
-                    const bothDesc = (totalFingers === 10)
-                        ? 'Ambas Manos: 10 Dedos Visibles (Palmas Abiertas)'
-                        : `Ambas Manos: ${totalFingers} Dedos Visibles (${handResults[0].side}: ${handResults[0].count} • ${handResults[1].side}: ${handResults[1].count})`;
-                    return {
-                        key: 'both_hands',
-                        name: bothDesc,
-                        color: BEHAVIOR_COLOR_MAP['both_hands'] ? BEHAVIOR_COLOR_MAP['both_hands'].color : '#06B6D4',
-                        confidence: 0.96
-                    };
-                } else if (handResults.length === 1) {
-                    const h = handResults[0];
-                    return {
-                        key: 'hand_fingers',
-                        name: `${h.side}: ${h.gesture}`,
-                        color: BEHAVIOR_COLOR_MAP['hand_fingers'] ? BEHAVIOR_COLOR_MAP['hand_fingers'].color : '#10B981',
-                        confidence: 0.96
-                    };
-                }
-            }
-
-            // 5. Mostrando Fruta o Verdura a la Cámara
+            // 4. Mostrando Fruta o Verdura a la Cámara
             const fruitsVeg = predictions.filter(p => fruitClasses.includes(p.class));
             for (const fv of fruitsVeg) {
                 const [fvx, fvy, fvw, fvh] = fv.bbox;
-                if (fvx + fvw / 2 >= px - pw * 0.35 && fvx + fvw / 2 <= px + pw * 1.35 && fvy >= py + ph * 0.30) {
+                if (fvx + fvw / 2 >= px - pw * 0.35 && fvx + fvw / 2 <= px + pw * 1.35 && fvy >= py + ph * 0.25) {
                     return {
                         key: 'showing_fruit_veg',
                         name: `Mostrando Fruta / Verdura: ${getObjectDisplayName(fv.class)}`,
@@ -2439,15 +2526,32 @@
                 }
             }
 
-            // 6. Mostrando Comida / Alimento Preparado
+            // 5. Mostrando Comida / Alimento Preparado
             const meals = predictions.filter(p => mealClasses.includes(p.class));
             for (const meal of meals) {
                 const [mx, my, mw, mh] = meal.bbox;
-                if (mx + mw / 2 >= px - pw * 0.35 && mx + mw / 2 <= px + pw * 1.35 && my >= py + ph * 0.30) {
+                if (mx + mw / 2 >= px - pw * 0.35 && mx + mw / 2 <= px + pw * 1.35 && my >= py + ph * 0.25) {
                     return {
                         key: 'showing_food',
                         name: `Mostrando Alimento: ${getObjectDisplayName(meal.class)}`,
                         color: BEHAVIOR_COLOR_MAP['showing_food'] ? BEHAVIOR_COLOR_MAP['showing_food'].color : '#EAB308',
+                        confidence: 0.94
+                    };
+                }
+            }
+
+            // 6. Bebiendo / Consumiendo Líquido (Botella, Taza, Copa)
+            for (const drink of drinks) {
+                const [dx, dy, dw, dh] = drink.bbox;
+                const drinkCenterX = dx + dw / 2;
+                const drinkCenterY = dy + dh / 2;
+
+                if (drinkCenterX >= px - pw * 0.25 && drinkCenterX <= px + pw * 1.25 &&
+                    drinkCenterY >= py && drinkCenterY <= py + ph * 0.55) {
+                    return {
+                        key: 'drinking',
+                        name: `Bebiendo / Consumiendo [${getObjectDisplayName(drink.class)}]`,
+                        color: BEHAVIOR_COLOR_MAP['drinking'] ? BEHAVIOR_COLOR_MAP['drinking'].color : '#7C3AED',
                         confidence: 0.94
                     };
                 }
@@ -2476,35 +2580,42 @@
                 };
             }
 
-            // 9. Bebiendo / Consumiendo Líquido (Botella, Taza, Copa)
-            for (const drink of drinks) {
-                const [dx, dy, dw, dh] = drink.bbox;
-                const drinkCenterX = dx + dw / 2;
-                const drinkCenterY = dy + dh / 2;
-
-                if (drinkCenterX >= px - pw * 0.25 && drinkCenterX <= px + pw * 1.25 &&
-                    drinkCenterY >= py && drinkCenterY <= py + ph * 0.55) {
-                    return {
-                        key: 'drinking',
-                        name: `Bebiendo / Consumiendo [${getObjectDisplayName(drink.class)}]`,
-                        color: BEHAVIOR_COLOR_MAP['drinking'] ? BEHAVIOR_COLOR_MAP['drinking'].color : '#7C3AED',
-                        confidence: 0.94
-                    };
-                }
-            }
-
-            // 10. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
+            // 9. Mostrando Cualquier Otro Objeto en Primer Plano a la Cámara
             const heldObjects = predictions.filter(p => !['person', 'chair', 'couch', 'bed', 'dining table'].includes(p.class));
             for (const obj of heldObjects) {
                 const [ox, oy, ow, oh] = obj.bbox;
                 const ocx = ox + ow / 2;
                 const ocy = oy + oh / 2;
-                if (ocx >= px && ocx <= px + pw && ocy >= py + ph * 0.35 && ocy <= py + ph * 0.85) {
+                if (ocx >= px - pw * 0.25 && ocx <= px + pw * 1.25 && ocy >= py + ph * 0.20 && ocy <= py + ph * 0.90) {
                     return {
                         key: 'showing_object',
                         name: `Mostrando a la Cámara: ${getObjectDisplayName(obj.class)}`,
                         color: BEHAVIOR_COLOR_MAP['showing_object'] ? BEHAVIOR_COLOR_MAP['showing_object'].color : '#38BDF8',
                         confidence: 0.93
+                    };
+                }
+            }
+
+            // 10. Conteo Preciso de Dedos y Gestos de Manos con MediaPipe (CUANDO NO SE SOSTIENE UN OBJETO)
+            if (handResults && handResults.length > 0) {
+                if (handResults.length >= 2) {
+                    const totalFingers = handResults[0].count + handResults[1].count;
+                    const bothDesc = (totalFingers === 10)
+                        ? 'Ambas Manos: 10 Dedos Visibles (Palmas Abiertas)'
+                        : `Ambas Manos: ${totalFingers} Dedos Visibles (${handResults[0].side}: ${handResults[0].count} • ${handResults[1].side}: ${handResults[1].count})`;
+                    return {
+                        key: 'both_hands',
+                        name: bothDesc,
+                        color: BEHAVIOR_COLOR_MAP['both_hands'] ? BEHAVIOR_COLOR_MAP['both_hands'].color : '#06B6D4',
+                        confidence: 0.96
+                    };
+                } else if (handResults.length === 1) {
+                    const h = handResults[0];
+                    return {
+                        key: 'hand_fingers',
+                        name: `${h.side}: ${h.gesture}`,
+                        color: BEHAVIOR_COLOR_MAP['hand_fingers'] ? BEHAVIOR_COLOR_MAP['hand_fingers'].color : '#10B981',
+                        confidence: 0.96
                     };
                 }
             }
