@@ -9,7 +9,14 @@
     <!-- System Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS CDN (Con filtro de advertencia de consola) -->
+    <script>
+        const _origConsoleWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+            _origConsoleWarn.apply(console, args);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -33,9 +40,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 
-    <!-- MediaPipe Hands for Real-Time Finger Counting & 3D Skeletal Landmark Tracking -->
+    <!-- MediaPipe Hands & Pose for Full Body Tracking & Gesture Recognition -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
     <!-- Pusher JS for Laravel Reverb WebSockets -->
     <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
@@ -103,7 +111,7 @@
                 <div>
                     <div class="flex items-center gap-2 flex-wrap">
                         <h1 class="text-sm sm:text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-1.5 sm:gap-2">
-                            dbCOMPUTECH <span class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono-code font-normal">IA Vision 360° Pro</span>
+                            dbCOMPUTECH <span class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono-code font-normal">Visión IA Pro</span>
                         </h1>
                         <span id="aiEvolutionBadge" class="hidden xl:inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono-code font-medium">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -309,9 +317,13 @@
                     <div class="px-3.5 sm:px-5 py-2.5 sm:py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
                             <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                            <span class="text-xs sm:text-sm font-semibold text-white truncate max-w-[180px] sm:max-w-none">Transmisión de Video & Detección Integral de Entorno</span>
+                            <span class="text-xs sm:text-sm font-semibold text-white truncate max-w-[180px] sm:max-w-none">Monitoreo en Vivo</span>
                         </div>
                         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <span id="hardwareCoresCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/60 hidden sm:inline-flex items-center gap-1">
+                                <svg class="w-3 h-3 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                                <span id="hardwareCoresText">Cargando HW...</span>
+                            </span>
                             <span id="fpsCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">0 FPS</span>
                             <span id="inferenceCounter" class="text-[11px] sm:text-xs font-mono-code px-1.5 sm:px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">0 ms</span>
                             <x-button variant="secondary" size="xs" onclick="toggleFullscreenVideo()" icon='<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>'>
@@ -804,9 +816,13 @@
             'wallet': 'Billetera', 'headphones': 'Auriculares', 'document': 'Documento'
         };
 
+        // Animal classes for full-body biological detection
+        const ANIMAL_CLASSES = ['dog', 'cat', 'bird', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe'];
+
         // State Management
         let isCameraActive = false;
         let currentFacingMode = 'user';
+        let currentActivePose = null;
         let videoElement = document.getElementById('webcam');
         let inferenceResolution = 640; // Pro HD default 640p
         let canvasElement = document.getElementById('canvasOverlay');
@@ -1089,6 +1105,14 @@
         let mediaPipeHands = null;
         let isHandsModelLoading = false;
         let isHandsInferring = false;
+        let lastHandsResultTime = 0;
+
+        // Full Body Pose Tracking (MediaPipe Pose 33 Landmarks)
+        let mediaPipePose = null;
+        let isPoseModelLoading = false;
+        let isPoseInferring = false;
+        let cachedPoseResults = null;
+        let lastPoseResultTime = 0;
         let cachedBehavior = { key: 'absent', name: 'Persona Ausente', color: '#64748B', confidence: 0.95 };
         let lastInferenceTime = 0;
         let lastHairSampleTime = 0;
@@ -1278,6 +1302,7 @@
         let detectionChannel = null;
 
         function initWebSocket() {
+            if (pusherInstance) return;
             const badge = document.getElementById('wsStatusBadge');
             const statusText = document.getElementById('wsStatusText');
 
@@ -1356,13 +1381,25 @@
             } else if (data.category === 'behavior') {
                 categoryLabel = 'COMPORTAMIENTO';
                 catColorClass = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+            } else if (data.category === 'pose') {
+                categoryLabel = 'POSTURA';
+                catColorClass = 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
+            } else if (data.category === 'animal') {
+                categoryLabel = 'ANIMAL';
+                catColorClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
             }
 
             const item = document.createElement('div');
             item.className = 'p-3 rounded-xl bg-slate-950/85 border border-slate-800 transition transform hover:translate-x-1 shadow-md shrink-0 min-h-[72px] flex flex-col justify-between gap-1.5';
             item.style.borderLeft = `4px solid ${data.color}`;
 
-            const formattedTime = (data.created_at ? new Date(data.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
+            let formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+            if (data.created_at) {
+                const parsedDate = new Date(data.created_at);
+                if (!isNaN(parsedDate.getTime()) && Math.abs(Date.now() - parsedDate.getTime()) > 5000) {
+                    formattedTime = parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                }
+            }
             const trackBadge = (data.details && data.details.track_id) ? `<span class="text-[9px] font-mono-code px-1 rounded bg-slate-900 border border-slate-700 text-slate-300 shrink-0">#${data.details.track_id}</span>` : '';
             const posBadge = (data.details && data.details.position) ? `<span class="text-[9px] px-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono-code shrink-0">${data.details.position}</span>` : '';
             const ctxText = (data.details && data.details.context) ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700/60 text-slate-300 font-sans truncate max-w-[170px]" title="${data.details.context}">${data.details.context}</span>` : '';
@@ -1626,6 +1663,18 @@
                     catBadge = '<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-[10px]">GESTO</span>';
                 } else if (data.category === 'behavior') {
                     catBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-semibold text-[10px]">COMPORTAMIENTO</span>';
+                } else if (data.category === 'pose') {
+                    catBadge = '<span class="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-semibold text-[10px]">POSTURA</span>';
+                } else if (data.category === 'animal') {
+                    catBadge = '<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-[10px]">ANIMAL</span>';
+                }
+
+                let timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                if (data.created_at) {
+                    const parsedDate = new Date(data.created_at);
+                    if (!isNaN(parsedDate.getTime()) && Math.abs(Date.now() - parsedDate.getTime()) > 5000) {
+                        timeStr = parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                    }
                 }
 
                 tr.innerHTML = `
@@ -1641,7 +1690,7 @@
                     <td class="px-4 py-2.5 font-mono-code">
                         <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">${data.confidence}%</span>
                     </td>
-                    <td class="px-4 py-2.5 text-slate-400 font-mono-code">${(data.created_at ? new Date(data.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }))}</td>
+                    <td class="px-4 py-2.5 text-slate-400 font-mono-code">${timeStr}</td>
                 `;
 
                 tbody.insertBefore(tr, tbody.firstChild);
@@ -2106,6 +2155,15 @@
         // ==========================================
         // ULTRA-PERFORMANCE FLASH AI ENGINE
         // ==========================================
+        function checkDeviceWebGLSupported() {
+            try {
+                const c = document.createElement('canvas');
+                return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl') || c.getContext('experimental-webgl')));
+            } catch (e) {
+                return false;
+            }
+        }
+
         async function loadDetectionModel() {
             if (cocoModel || isModelLoading) return;
             isModelLoading = true;
@@ -2114,13 +2172,31 @@
 
             try {
                 if (window.tf) {
-                    tf.env().set('WEBGL_PACK', true);
-                    tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
-                    await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+                    const hasWebGL = checkDeviceWebGLSupported();
+                    let backendReady = false;
+
+                    if (hasWebGL) {
+                        try {
+                            tf.env().set('WEBGL_PACK', true);
+                            tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
+                            await tf.setBackend('webgl');
+                            backendReady = true;
+                        } catch (glError) {
+                            // Fallback silencioso a CPU optimizado
+                        }
+                    }
+
+                    if (!backendReady) {
+                        try {
+                            await tf.setBackend('cpu');
+                        } catch (cpuError) {
+                            // Fallback
+                        }
+                    }
                     await tf.ready();
                 }
 
-                text.innerText = 'IA: Cargando Red HD...';
+                text.innerText = 'IA: Cargando Redes Neuronales...';
                 try {
                     cocoModel = await cocoSsd.load({ base: 'mobilenet_v2' });
                 } catch (loadErr) {
@@ -2128,7 +2204,7 @@
                     cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
                 }
 
-                // Inicializar MediaPipe Hands para detección de manos y conteo de dedos ultra veloz
+                // 1. Inicializar MediaPipe Hands para gestos y dedos
                 if (window.Hands && !mediaPipeHands && !isHandsModelLoading) {
                     try {
                         isHandsModelLoading = true;
@@ -2137,7 +2213,7 @@
                         });
                         mediaPipeHands.setOptions({
                             maxNumHands: 2,
-                            modelComplexity: 0, // Modelo Lite optimizado para 60 FPS en tiempo real
+                            modelComplexity: 0,
                             minDetectionConfidence: 0.45,
                             minTrackingConfidence: 0.45
                         });
@@ -2148,13 +2224,43 @@
                             } else {
                                 cachedHandResults = analyzeHandResults(results);
                             }
-                            // Actualización instantánea del comportamiento cuando cambian los gestos de las manos
-                            cachedBehavior = analyzeGesturesAndBehavior(cachedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults);
+                            cachedBehavior = analyzeGesturesAndBehavior(cachedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults, cachedPoseResults);
                         });
                     } catch (hErr) {
-                        console.warn('MediaPipe Hands load notice:', hErr);
+                        console.warn('MediaPipe Hands notice:', hErr);
                     } finally {
                         isHandsModelLoading = false;
+                    }
+                }
+
+                // 2. Inicializar MediaPipe Pose para CUERPO COMPLETO y Posturas
+                if (window.Pose && !mediaPipePose && !isPoseModelLoading) {
+                    try {
+                        isPoseModelLoading = true;
+                        mediaPipePose = new Pose({
+                            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+                        });
+                        mediaPipePose.setOptions({
+                            modelComplexity: 0,
+                            smoothLandmarks: true,
+                            enableSegmentation: false,
+                            smoothSegmentation: false,
+                            minDetectionConfidence: 0.45,
+                            minTrackingConfidence: 0.45
+                        });
+                        mediaPipePose.onResults((results) => {
+                            lastPoseResultTime = performance.now();
+                            if (!results || !results.poseLandmarks || results.poseLandmarks.length === 0) {
+                                cachedPoseResults = null;
+                            } else {
+                                cachedPoseResults = analyzePoseResults(results);
+                            }
+                            cachedBehavior = analyzeGesturesAndBehavior(cachedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults, cachedPoseResults);
+                        });
+                    } catch (pErr) {
+                        console.warn('MediaPipe Pose notice:', pErr);
+                    } finally {
+                        isPoseModelLoading = false;
                     }
                 }
                 
@@ -2170,8 +2276,6 @@
             }
         }
 
-        let lastHandsResultTime = 0;
-
         function startDetectionEngine() {
             if (!cocoModel) loadDetectionModel();
             const dims = getActiveMediaDimensions();
@@ -2182,6 +2286,7 @@
             renderLoop();
             scheduleNextInference();
             scheduleNextHands();
+            scheduleNextPose();
         }
 
         // ==========================================
@@ -2204,6 +2309,11 @@
             // Expiración inmediata de manos si salieron del rango de visión (>220ms sin detección)
             if (performance.now() - lastHandsResultTime > 220) {
                 cachedHandResults = [];
+            }
+
+            // Expiración inmediata de pose si no hay detección (>300ms)
+            if (performance.now() - lastPoseResultTime > 300) {
+                cachedPoseResults = null;
             }
 
             // 1. Interpolación de movimiento reactiva a 60 FPS (Seguimiento continuo suave)
@@ -2236,7 +2346,7 @@
                     };
                 });
 
-            renderComprehensiveOverlay(liveRenderPredictions, liveRenderPersons, cachedBehavior, cachedObjectContexts, cachedHandResults);
+            renderComprehensiveOverlay(liveRenderPredictions, liveRenderPersons, cachedBehavior, cachedObjectContexts, cachedHandResults, cachedPoseResults);
 
             // Composición para grabación de video (Cámara Web Real o IP + Bounding Boxes & HUD de IA a 60 FPS)
             if (isRecording) {
@@ -2293,6 +2403,104 @@
             if (isCameraActive) {
                 scheduleNextHands();
             }
+        }
+
+        // ==========================================
+        // 2B. FULL BODY POSE SCHEDULER & ANALYZER (DESACOPLADO A 60 FPS)
+        // ==========================================
+        function scheduleNextPose() {
+            if (!isCameraActive) return;
+            const activeMedia = getActiveMediaElement();
+            if (activeMedia && 'requestVideoFrameCallback' in activeMedia) {
+                activeMedia.requestVideoFrameCallback(() => poseScheduler());
+            } else {
+                requestAnimationFrame(() => poseScheduler());
+            }
+        }
+
+        async function poseScheduler() {
+            if (!isCameraActive) return;
+            const activeMedia = getActiveMediaElement();
+            if (mediaPipePose && !isPoseInferring && isMediaSourceReady()) {
+                isPoseInferring = true;
+                try {
+                    await mediaPipePose.send({ image: activeMedia });
+                } catch (mpErr) {
+                    // Notice
+                } finally {
+                    isPoseInferring = false;
+                }
+            }
+            if (isCameraActive) {
+                scheduleNextPose();
+            }
+        }
+
+        function analyzePoseResults(results) {
+            if (!results || !results.poseLandmarks || results.poseLandmarks.length === 0) return null;
+            const lm = results.poseLandmarks;
+            const W = canvasElement.width || 640;
+            const H = canvasElement.height || 480;
+
+            let minX = 1, minY = 1, maxX = 0, maxY = 0;
+            let visibleCount = 0;
+            lm.forEach(pt => {
+                if ((pt.visibility || 1) > 0.35) {
+                    visibleCount++;
+                    if (pt.x < minX) minX = pt.x;
+                    if (pt.x > maxX) maxX = pt.x;
+                    if (pt.y < minY) minY = pt.y;
+                    if (pt.y > maxY) maxY = pt.y;
+                }
+            });
+
+            if (visibleCount < 6) return null;
+
+            const boxX = Math.max(0, minX * W);
+            const boxY = Math.max(0, minY * H);
+            const boxW = Math.max(20, (maxX - minX) * W);
+            const boxH = Math.max(20, (maxY - minY) * H);
+
+            const leftShoulder = lm[11] || { y: 0.3 };
+            const rightShoulder = lm[12] || { y: 0.3 };
+            const leftWrist = lm[15] || { y: 0.8 };
+            const rightWrist = lm[16] || { y: 0.8 };
+            const leftHip = lm[23] || { y: 0.6 };
+            const rightHip = lm[24] || { y: 0.6 };
+            const leftKnee = lm[25] || { y: 0.8 };
+            const rightKnee = lm[26] || { y: 0.8 };
+            const leftAnkle = lm[27] || { y: 0.95 };
+            const rightAnkle = lm[28] || { y: 0.95 };
+
+            const shouldersY = (leftShoulder.y + rightShoulder.y) / 2;
+            const hipsY = (leftHip.y + rightHip.y) / 2;
+            const kneesY = (leftKnee.y + rightKnee.y) / 2;
+            const anklesY = (leftAnkle.y + rightAnkle.y) / 2;
+
+            let posture = 'De Pie (Cuerpo Completo)';
+            let postureKey = 'standing_full_body';
+
+            if (leftWrist.y < shouldersY && rightWrist.y < shouldersY) {
+                posture = 'Brazos Arriba (Cuerpo Completo)';
+                postureKey = 'arms_up_full_body';
+            } else if (leftWrist.y < shouldersY || rightWrist.y < shouldersY) {
+                posture = 'Brazo Levantado (Cuerpo Completo)';
+                postureKey = 'arm_raised_full_body';
+            } else if (Math.abs(hipsY - kneesY) < 0.12 && (anklesY - kneesY) > 0.08) {
+                posture = 'Sentado (Cuerpo Completo)';
+                postureKey = 'sitting_full_body';
+            } else if (boxW / (boxH || 1) >= 1.25) {
+                posture = 'Cuerpo Inclinado / Caído';
+                postureKey = 'person_fallen_full_body';
+            }
+
+            return {
+                landmarks: lm,
+                bbox: [boxX, boxY, boxW, boxH],
+                posture: posture,
+                postureKey: postureKey,
+                confidence: 0.98
+            };
         }
 
         // ==========================================
@@ -2372,12 +2580,12 @@
                 cachedPredictions = trackedPredictions;
                 cachedPersonsData = analyzePersonsAndHair(trackedPredictions);
                 cachedObjectContexts = enrichEnvironmentalContext(trackedPredictions, cachedPersonsData, cachedHandResults);
-                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults);
+                cachedBehavior = analyzeGesturesAndBehavior(trackedPredictions, cachedPersonsData, cachedObjectContexts, cachedHandResults, cachedPoseResults);
 
                 const infDuration = Math.round(performance.now() - startTime);
                 document.getElementById('inferenceCounter').innerText = `${infDuration} ms`;
 
-                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults);
+                processAllDetectionsAndWebSocket(trackedPredictions, cachedPersonsData, cachedBehavior, cachedObjectContexts, cachedHandResults, cachedPoseResults);
 
                 // Actualización instantánea en tiempo real de KPIs y Radar
                 const now = performance.now();
@@ -2774,13 +2982,61 @@
         // GESTURE & BEHAVIOR ANALYSIS HEURISTICS
         // Detecta gestos precisos, qué hace la persona, conteo de dedos y el estado de la escena completa
         // ==========================================
-        function analyzeGesturesAndBehavior(predictions, personsData, objectContexts, handResults) {
+        function analyzeGesturesAndBehavior(predictions, personsData, objectContexts, handResults, poseResults) {
             const personCount = personsData.length;
             const fruitClasses = ['apple', 'banana', 'orange', 'broccoli', 'carrot'];
             const mealClasses = ['sandwich', 'pizza', 'hot dog', 'donut', 'cake', 'bowl'];
             const utensilClasses = ['fork', 'knife', 'spoon'];
 
+            // Evaluación prioritaria de postura corporal mediante MediaPipe Pose (33 Landmarks)
+            if (poseResults && poseResults.postureKey) {
+                if (poseResults.postureKey === 'person_fallen_full_body') {
+                    return {
+                        key: 'person_fallen',
+                        name: 'Alerta: Persona Caída (Cuerpo Completo)',
+                        color: BEHAVIOR_COLOR_MAP['person_fallen'] ? BEHAVIOR_COLOR_MAP['person_fallen'].color : '#DC2626',
+                        confidence: 0.98
+                    };
+                }
+                if (poseResults.postureKey === 'arms_up_full_body') {
+                    return {
+                        key: 'hands_up',
+                        name: 'Brazos Arriba (Cuerpo Completo)',
+                        color: BEHAVIOR_COLOR_MAP['hands_up'] ? BEHAVIOR_COLOR_MAP['hands_up'].color : '#DC2626',
+                        confidence: 0.98
+                    };
+                }
+                if (poseResults.postureKey === 'arm_raised_full_body') {
+                    return {
+                        key: 'waving',
+                        name: 'Brazo Levantado (Cuerpo Completo)',
+                        color: BEHAVIOR_COLOR_MAP['waving'] ? BEHAVIOR_COLOR_MAP['waving'].color : '#F59E0B',
+                        confidence: 0.96
+                    };
+                }
+                if (poseResults.postureKey === 'sitting_full_body') {
+                    return {
+                        key: 'sitting_posture',
+                        name: 'Sentado (Cuerpo Completo)',
+                        color: BEHAVIOR_COLOR_MAP['sitting_posture'] ? BEHAVIOR_COLOR_MAP['sitting_posture'].color : '#3B82F6',
+                        confidence: 0.97
+                    };
+                }
+            }
+
             if (personCount === 0) {
+                // Caso 0: Presencia y actividad de animales biológicos [Cuerpo Completo]
+                const detectedAnimals = predictions.filter(p => ANIMAL_CLASSES.includes(p.class));
+                if (detectedAnimals.length > 0) {
+                    const anim = detectedAnimals[0];
+                    return {
+                        key: 'animal_active',
+                        name: `Animal en Escena: ${getObjectDisplayName(anim.class)} [Cuerpo Completo]`,
+                        color: getObjectColor(anim.class),
+                        confidence: anim.score || 0.95
+                    };
+                }
+
                 // Caso 1: Objeto desatendido en el entorno
                 const unattendedObjs = predictions.filter(p => ['backpack', 'handbag', 'suitcase', 'laptop', 'cell phone', 'wallet'].includes(p.class));
                 if (unattendedObjs.length > 0) {
@@ -3310,7 +3566,7 @@
         // ==========================================
         // CANVAS RENDERING WITH EXACT COORDINATES & RICH CONTEXT & HAND SKELETONS
         // ==========================================
-        function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts, handResults) {
+        function renderComprehensiveOverlay(predictions, personsData, behavior, objectContexts, handResults, poseResults) {
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
             // Sistema Avanzado de Colocación Anti-Colisión Dinámica de Etiquetas
@@ -3419,9 +3675,13 @@
 
                 // Etiqueta inteligente con información del estado y contexto
                 let labelText = '';
+                const isAnimal = ANIMAL_CLASSES.includes(pred.class);
                 if (isPerson) {
                     const actionName = (behavior && behavior.name && behavior.key !== 'absent') ? behavior.name : 'Presente';
                     labelText = `Persona #${pred.id || 1} [${actionName}] • ${scorePercent}%`;
+                } else if (isAnimal) {
+                    const ctxStr = contextTag ? ` [${contextTag}]` : '';
+                    labelText = `${displayName} [Cuerpo Completo] #${pred.id || 1}${ctxStr} • ${scorePercent}%`;
                 } else {
                     const ctxStr = contextTag ? ` [${contextTag}]` : '';
                     labelText = `${displayName} #${pred.id || 1}${ctxStr} • ${scorePercent}%`;
@@ -3607,6 +3867,89 @@
                 });
             }
 
+            // 3B. DIBUJO DE ESQUELETO DE CUERPO COMPLETO (MEDIAPIPE POSE 33 LANDMARKS)
+            if (poseResults && poseResults.landmarks) {
+                const POSE_CONNECTIONS = [
+                    [11, 12], [12, 24], [24, 23], [23, 11], // Torso
+                    [11, 13], [13, 15],                     // Brazo Izquierdo
+                    [12, 14], [14, 16],                     // Brazo Derecho
+                    [23, 25], [25, 27], [27, 29], [29, 31], [27, 31], // Pierna Izquierda
+                    [24, 26], [26, 28], [28, 30], [30, 32], [28, 32], // Pierna Derecha
+                    [0, 1], [1, 2], [2, 3], [3, 7],         // Ojo / Oreja Izq
+                    [0, 4], [4, 5], [5, 6], [6, 8],         // Ojo / Oreja Der
+                    [9, 10]                                 // Boca
+                ];
+
+                const plm = poseResults.landmarks;
+                const W = canvasElement.width;
+                const H = canvasElement.height;
+
+                // Conexiones de cuerpo completo
+                ctx.save();
+                ctx.strokeStyle = '#06B6D4';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#06B6D4';
+                ctx.shadowBlur = 8;
+                POSE_CONNECTIONS.forEach(([i, j]) => {
+                    const p1 = plm[i];
+                    const p2 = plm[j];
+                    if (p1 && p2 && (p1.visibility || 1) > 0.4 && (p2.visibility || 1) > 0.4) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x * W, p1.y * H);
+                        ctx.lineTo(p2.x * W, p2.y * H);
+                        ctx.stroke();
+                    }
+                });
+                ctx.restore();
+
+                // Articulaciones luminosas de cuerpo completo
+                ctx.save();
+                plm.forEach((pt, idx) => {
+                    if ((pt.visibility || 1) > 0.4) {
+                        const jx = pt.x * W;
+                        const jy = pt.y * H;
+                        ctx.beginPath();
+                        ctx.arc(jx, jy, [11, 12, 23, 24, 25, 26, 27, 28].includes(idx) ? 5 : 3.5, 0, Math.PI * 2);
+                        ctx.fillStyle = [15, 16, 27, 28].includes(idx) ? '#F59E0B' : '#38BDF8';
+                        ctx.fill();
+                    }
+                });
+                ctx.restore();
+
+                // Etiqueta flotante de cuerpo completo
+                const [pbx, pby, pbw, pbh] = poseResults.bbox;
+                const poseLabel = `Cuerpo Completo: ${poseResults.posture}`;
+                ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                const pTextW = ctx.measureText(poseLabel).width + 24;
+                const pTagH = 24;
+
+                const posePos = allocateLabelPosition([pbx, pby, pbw, pbh], pTextW, pTagH);
+                ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                ctx.shadowBlur = 6;
+                ctx.fillStyle = 'rgba(8, 47, 73, 0.94)';
+                ctx.strokeStyle = '#06B6D4';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(posePos.x, posePos.y, pTextW, pTagH, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#06B6D4';
+                ctx.beginPath();
+                ctx.roundRect(posePos.x + 2, posePos.y + 2, 4, pTagH - 4, 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(posePos.x + 13, posePos.y + pTagH / 2, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(poseLabel, posePos.x + 22, posePos.y + 16);
+                ctx.restore();
+            }
+
             // 4. Banner inferior en tiempo real mostrando Gesto o Actividad
             if (behavior && behavior.key !== 'absent') {
                 const bannerHeight = 36;
@@ -3652,13 +3995,14 @@
         // ==========================================
         // SMART REAL-TIME WEBSOCKET TRACKING DISPATCHER
         // ==========================================
-        function processAllDetectionsAndWebSocket(predictions, personsData, behavior, objectContexts, handResults) {
+        function processAllDetectionsAndWebSocket(predictions, personsData, behavior, objectContexts, handResults, poseResults) {
             const now = performance.now();
 
-            // 1. Seguimiento de personas y objetos en tiempo real por WebSocket
+            // 1. Seguimiento de personas, animales y objetos en tiempo real por WebSocket
             predictions.forEach(pred => {
                 const trackId = pred.id || 1;
                 const isPerson = pred.class === 'person';
+                const isAnimal = ANIMAL_CLASSES.includes(pred.class);
                 const key = `track_${pred.class}_${trackId}`;
                 const lastSent = lastEventSentTimestamps[key] || 0;
                 const posDesc = getPositionDescription(pred.bbox);
@@ -3669,10 +4013,18 @@
 
                 if (now - lastSent >= interval) {
                     lastEventSentTimestamps[key] = now;
-                    const displayName = isPerson ? `Persona #${trackId}` : `${getObjectDisplayName(pred.class)} #${trackId}`;
+                    let displayName = `${getObjectDisplayName(pred.class)} #${trackId}`;
+                    let category = 'object';
+                    if (isPerson) {
+                        displayName = `Persona #${trackId}`;
+                        category = 'behavior';
+                    } else if (isAnimal) {
+                        displayName = `${getObjectDisplayName(pred.class)} [Cuerpo Completo] #${trackId}`;
+                        category = 'animal';
+                    }
 
                     sendDetectionToServer({
-                        category: isPerson ? 'behavior' : 'object',
+                        category: category,
                         label: pred.class,
                         display_name: displayName,
                         confidence: pred.score,
@@ -3682,7 +4034,8 @@
                             bbox: pred.bbox,
                             position: posDesc,
                             context: ctxTag,
-                            status: 'seguimiento_activo'
+                            status: 'seguimiento_activo',
+                            full_body: isAnimal ? true : undefined
                         }
                     });
                 }
@@ -3736,6 +4089,32 @@
                         details: {
                             persons: personsData.length,
                             hands: handResults ? handResults.length : 0
+                        }
+                    });
+                }
+            }
+
+            // 4. Detección y Seguimiento de Cuerpo Completo (MediaPipe Pose)
+            if (poseResults && poseResults.postureKey) {
+                const poseKey = `pose_${poseResults.postureKey}`;
+                const lastPoseSent = lastEventSentTimestamps[poseKey] || 0;
+                const poseChanged = currentActivePose !== poseResults.postureKey;
+                const pInterval = poseChanged ? 0 : 1500;
+
+                if (now - lastPoseSent >= pInterval) {
+                    currentActivePose = poseResults.postureKey;
+                    lastEventSentTimestamps[poseKey] = now;
+
+                    sendDetectionToServer({
+                        category: 'pose',
+                        label: poseResults.postureKey,
+                        display_name: `Cuerpo Completo • ${poseResults.posture}`,
+                        confidence: poseResults.confidence || 0.98,
+                        color: '#06B6D4',
+                        details: {
+                            posture: poseResults.posture,
+                            bbox: poseResults.bbox,
+                            full_body: true
                         }
                     });
                 }
@@ -4327,6 +4706,11 @@
 
         // Auto load on start: WS, detection models, camera enumeration, and initial 6 feed records
         document.addEventListener('DOMContentLoaded', () => {
+            const cores = navigator.hardwareConcurrency || 4;
+            const hwText = document.getElementById('hardwareCoresText');
+            if (hwText) {
+                hwText.innerText = `${cores} Hilos CPU • 100% Recursos`;
+            }
             initWebSocket();
             loadDetectionModel();
             checkAvailableCameras();

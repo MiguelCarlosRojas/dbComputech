@@ -145,6 +145,11 @@ class DetectionController extends Controller
         'unattended_object' => ['name' => 'Objeto Desatendido', 'color' => '#F59E0B'],
         'person_fallen' => ['name' => 'Persona Caída', 'color' => '#DC2626'],
         'sleeping_desk' => ['name' => 'Inactividad en Escritorio', 'color' => '#64748B'],
+        'standing_full_body' => ['name' => 'De Pie (Cuerpo Completo)', 'color' => '#06B6D4'],
+        'sitting_full_body' => ['name' => 'Sentado (Cuerpo Completo)', 'color' => '#3B82F6'],
+        'arms_up_full_body' => ['name' => 'Brazos Arriba (Cuerpo Completo)', 'color' => '#10B981'],
+        'arm_raised_full_body' => ['name' => 'Brazo Levantado (Cuerpo Completo)', 'color' => '#14B8A6'],
+        'person_fallen_full_body' => ['name' => 'Cuerpo Inclinado / Caído', 'color' => '#EF4444'],
         'absent' => ['name' => 'Persona Ausente', 'color' => '#475569'],
     ];
 
@@ -297,18 +302,18 @@ class DetectionController extends Controller
     private function calculateStats(): array
     {
         $total = DetectionLog::count();
-        $totalObjects = DetectionLog::where('category', 'object')->count();
-        $totalBehaviors = DetectionLog::whereIn('category', ['behavior', 'gesture'])->count();
+        $totalObjects = DetectionLog::whereIn('category', ['object', 'animal'])->count();
+        $totalBehaviors = DetectionLog::whereIn('category', ['behavior', 'gesture', 'pose'])->count();
         $totalHair = DetectionLog::where('category', 'hair')->count();
 
-        $topObjects = DetectionLog::where('category', 'object')
+        $topObjects = DetectionLog::whereIn('category', ['object', 'animal'])
             ->selectRaw('display_name, color, count(*) as count')
             ->groupBy('display_name', 'color')
             ->orderByDesc('count')
             ->take(6)
             ->get();
 
-        $topBehaviors = DetectionLog::whereIn('category', ['behavior', 'gesture', 'hair'])
+        $topBehaviors = DetectionLog::whereIn('category', ['behavior', 'gesture', 'hair', 'pose'])
             ->selectRaw('display_name, color, count(*) as count')
             ->groupBy('display_name', 'color')
             ->orderByDesc('count')
